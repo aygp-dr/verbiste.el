@@ -93,6 +93,9 @@ Common French verbs for testing:
 ** Resources
 
 - [[http://sarrazip.com/dev/verbiste.html][Verbiste Official Website]]
+- [[https://web.archive.org/web/20080418121944/http://perso.b2b2c.ca/sarrazip/dev/verbiste.html][Verbiste Archive (Historical)]]
+- [[https://github.com/euoia/node-reverb/blob/master/lib/conjugation-tables/conjugation-fr.xml][Verbiste French Conjugation Tables (GitHub)]]
+- [[https://sourceforge.net/projects/verbes/][Verbes Project on SourceForge]]
 - [[/usr/local/share/verbiste-0.1/][Local Verbiste Data Files]]
 
 ** License
