@@ -78,17 +78,7 @@ $(DIST_DIR):
 
 # JSON conversion
 $(DATA_DIR)/%.json: $(VERBISTE_XML_DIR)/%.xml | $(DATA_DIR)
-	$(EMACS) --batch \
-	  --eval "(require 'json)" \
-	  --eval "(require 'xml)" \
-	  --eval "(setq xml-data (with-temp-buffer \
-		    (insert-file-contents \"$<\") \
-		    (xml-parse-region (point-min) (point-max))))" \
-	  --eval "(setq json-data (json-encode xml-data))" \
-	  --eval "(with-temp-file \"$@\" \
-		    (insert json-data) \
-		    (json-pretty-print-buffer))" \
-	  --eval "(message \"Converted $< to $@\")"
+	./xml2json.py $< $@
 
 # Org generation
 $(DATA_DIR)/%.org: $(DATA_DIR)/%.json
