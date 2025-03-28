@@ -1,0 +1,25 @@
+<?xml version="1.0"?>
+
+<!-- 
+    Sample extract from verbs-fr.xml
+    This is a small subset of the full verb list
+-->
+
+<verbs>
+  <v i="aimer" t=":aim:er"/>
+  <v i="aller" t=":all:er"/>
+  <v i="avoir" t=":av:oir"/>
+  <v i="être" t=":êt:re"/>
+  <v i="devoir" t=":dev:oir"/>
+  <v i="dire" t=":d:ire"/>
+  <v i="faire" t=":f:aire"/>
+  <v i="finir" t=":fin:ir"/>
+  <v i="manger" t=":mang:er"/>
+  <v i="parler" t=":parl:er"/>
+  <v i="pouvoir" t=":pouv:oir"/>
+  <v i="prendre" t=":prend:re"/>
+  <v i="savoir" t=":sav:oir"/>
+  <v i="venir" t=":ven:ir"/>
+  <v i="voir" t=":v:oir"/>
+  <v i="vouloir" t=":voul:oir"/>
+</verbs>

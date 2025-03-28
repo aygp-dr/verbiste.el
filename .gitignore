@@ -1,0 +1,33 @@
+# Emacs Lisp compiled files
+*.elc
+
+# Emacs backup files
+*~
+\#*\#
+.\#*
+
+# Auto-save files
+auto-save-list
+tramp
+
+# Generated files
+data/*.json
+data/*.org
+
+# Verbiste XML dumps
+/verbiste-*.xml
+
+# Byte-compiled files
+*.gc*
+*.eld
+
+# VS Code
+.vscode/
+*.code-workspace
+
+# Cursor Editor
+.cursor/
+*.cursor-workspace
+
+# Misc
+.DS_Store

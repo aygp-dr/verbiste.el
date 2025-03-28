@@ -1,0 +1,209 @@
+#+TITLE: Implementation Comparison of Verbiste.el
+#+AUTHOR: Jason Walsh
+#+DATE: [2025-03-28 Fri]
+#+OPTIONS: toc:2 num:t
+
+* Introduction
+
+This document compares existing implementations of verbiste.el, a package for French verb conjugation in Emacs. The analysis examines different approaches found in dotfiles repositories and package systems to help guide our implementation decisions.
+
+* Feature Comparison
+
+| Feature                      | Kanis (2010) | Aidan Pace (2025) | Debian elpa-verbiste | Our New Implementation |
+|-----------------------------+--------------+-------------------+----------------------+------------------------|
+| External command usage       | Yes (required)| Yes (configurable)| Yes                  | Optional               |
+| Direct XML parsing           | No           | Yes (basic)       | Unknown              | Yes                    |
+| JSON data conversion         | No           | No                | No                   | Yes                    |
+| Italian language support     | No           | Partial/Planned   | Yes                  | Optional               |
+| Custom table formatting      | Yes          | No                | Unknown              | Yes                    |
+| Buffer-based display         | Yes          | Yes               | Unknown              | Yes                    |
+| Deconjugation support        | Yes          | Yes               | Unknown              | Yes                    |
+| Completion integration       | No           | No                | Unknown              | Yes                    |
+| Org-mode integration         | No           | No                | No                   | Yes                    |
+| Babel support                | No           | No                | No                   | Yes                    |
+| Custom verb database         | No           | No                | No                   | Yes                    |
+| Character-based navigation   | No           | No                | Unknown              | Yes                    |
+| Caching of conjugations      | No           | Yes (basic)       | Unknown              | Yes                    |
+| Installation check           | No           | Yes               | No                   | Yes                    |
+| Minor mode                   | No           | Yes               | Unknown              | Yes                    |
+| Custom keybindings           | No           | Yes               | Unknown              | Yes                    |
+| Requires Emacs 30.1          | No           | No (25.1+)        | No                   | Yes                    |
+| React-based frontend         | No           | No                | No                   | Yes                    |
+
+* Existing Implementations
+
+** Ivan Kanis's Implementation (2010)
+
+This implementation appears to be the foundation that Daimrod's configuration uses. It was written by Ivan Kanis in 2010, with acknowledgment to Ben Voui for an earlier version.
+
+Key characteristics:
+- Written in 2010, GPL licensed
+- Entirely dependent on external commands (~french-conjugator~ and ~french-deconjugator~)
+- Uses a simple buffer-based UI with column formatting
+- Handles wide verb forms with a different formatting approach
+- Provides both conjugation and deconjugation functionality
+- Simple workflow: place cursor on verb, run ~M-x verbiste~
+
+Code structure:
+- Single file of approximately 200 lines
+- No dependencies beyond core Emacs
+- Uses direct shell commands for verb processing
+- Simple string manipulation for display formatting
+- No caching mechanism
+
+** Aidan Pace's Implementation (2025)
+
+This implementation represents a modernized approach to verbiste.el, building upon previous versions with more extensibility and features.
+
+Key characteristics:
+- Written in 2025, GPL licensed
+- Support for both command-line tools and direct XML parsing
+- Preparation for Italian language support
+- Basic caching mechanism for XML data
+- Proper customization options via defcustom
+- Defined minor mode with keybindings
+- Installation checking functionality
+
+Code structure:
+- Well-structured with customizations, variables, and functions
+- Uses cl-lib and xml libraries
+- Defines a proper minor mode
+- Separates command-line and XML parsing approaches
+- Includes caching for better performance
+- More modular and extensible than the 2010 version
+
+** Debian Package: elpa-verbiste
+
+Available in Debian repositories as a package, this is likely the most "official" implementation. According to package descriptions, it provides:
+
+- Integration with the verbiste program
+- French and Italian conjugation support
+- Emacs interface to the verbiste API
+- Part of the GNU ELPA system
+
+Unfortunately, the detailed code is not readily available in public repositories.
+
+** No Other Complete Implementations Found
+
+Research did not reveal other complete implementations of verbiste.el in public repositories. This suggests:
+
+1. The package is relatively niche
+2. Most users rely on either Kanis's implementation or the Debian package
+3. There is an opportunity to create a more modern, feature-rich implementation
+
+* Analysis of Current Implementations
+
+** Comparison of Kanis and Pace Implementations
+
+Aidan Pace's implementation represents a significant evolution from Kanis's approach:
+
+1. *Architecture*:
+   - Kanis: Simple, single-purpose code with direct shell commands
+   - Pace: More modular with separation between interface and implementation
+
+2. *Extensibility*:
+   - Kanis: Limited to French verbs only
+   - Pace: Framework for adding Italian support
+
+3. *Configuration*:
+   - Kanis: No customization options
+   - Pace: Proper defcustom variables for paths and settings
+
+4. *UI*:
+   - Kanis: Custom table formatting with variable width support
+   - Pace: Simpler buffer display without specialized formatting
+
+5. *Performance*:
+   - Kanis: No caching
+   - Pace: Basic caching of XML data
+
+** Strengths and Limitations
+
+| Implementation | Strengths | Limitations |
+|---------------+----------+-------------|
+| Kanis (2010)   | Simple and direct | Requires external commands |
+|               | Nice table formatting | No caching |
+|               | Handles wide verb forms | French only |
+|               | | No customization |
+| Pace (2025)    | Modular architecture | Incomplete XML parsing |
+|               | Customization options | Basic display formatting |
+|               | Caching mechanism | Limited functionality |
+|               | Minor mode | |
+|               | Installation checking | |
+
+* Modern Implementation Approach
+
+Our new implementation aims to combine the strengths of previous versions while adding modern functionality:
+
+** Data Source
+- Direct XML parsing using Emacs 30.1's enhanced XML capabilities
+- JSON conversion for improved data manipulation
+- Optional use of external programs for compatibility
+- Comprehensive caching mechanisms for performance
+
+** UI Enhancements
+- Maintained buffer-based display with improved formatting
+- Interactive character-based navigation
+- Integration with completion frameworks
+- Customizable display options
+- React-based web interface option
+
+** Integration Points
+- Org-mode and babel support for literate programming
+- Company/auto-complete integration
+- Hooks for language-specific modes
+- Potential for transient/hydra menu systems
+
+* Technical Architecture
+
+Our new implementation follows this architecture:
+
+#+begin_src dot :file architecture.png :exports results
+digraph VerbistearchitectureImpl {
+  rankdir=LR;
+  node [shape=box, style=filled, fillcolor=lightblue];
+  
+  XML [label="Verbiste XML files"];
+  JSON [label="JSON Conversion"];
+  CoreAPI [label="Core API"];
+  Buffer [label="Buffer Interface"];
+  Org [label="Org Mode Integration"];
+  Babel [label="Babel Support"];
+  React [label="React Frontend"];
+  
+  XML -> JSON [label="Makefile conversion"];
+  JSON -> CoreAPI;
+  CoreAPI -> Buffer;
+  CoreAPI -> Org;
+  CoreAPI -> Babel;
+  CoreAPI -> React;
+}
+#+end_src
+
+* Implementation Plan
+
+1. *Core functionality*
+   - JSON data parsing and manipulation
+   - Basic conjugation and deconjugation functions
+   - Buffer display with formatting
+
+2. *Enhanced features*
+   - Caching system
+   - Character navigation
+   - Completion integration
+
+3. *Integration*
+   - Org-mode support
+   - Babel integration
+   - React frontend
+
+4. *Documentation*
+   - User manual
+   - Developer guide
+   - Examples and tutorials
+
+* Conclusion
+
+The landscape of verbiste.el implementations shows a clear evolution from Kanis's 2010 version to Pace's more modern 2025 approach. Our new implementation targeting Emacs 30.1 can build upon these foundations with enhanced features and integrations.
+
+By incorporating the best elements of each approach - Kanis's table formatting, Pace's modularity and caching, plus our own JSON-based data handling and integrations - we can create a comprehensive package that serves both casual and power users of French and Italian verb conjugation within Emacs.

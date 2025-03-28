@@ -1,0 +1,100 @@
+#+TITLE: verbiste.el
+#+AUTHOR: Aidan Pace
+#+EMAIL: apace@defrecord.com
+
+* Verbiste.el
+
+Emacs interface to the Verbiste French/Italian verb conjugation library.
+
+** Overview
+
+This package provides a convenient interface to the verbiste library for French and Italian verb conjugation directly within Emacs. It allows users to conjugate verbs in all tenses and moods, right from their editor.
+
+** Installation
+
+*** Prerequisites
+
+**** FreeBSD
+#+begin_src bash
+sudo pkg install verbiste
+#+end_src
+
+**** Debian/Ubuntu
+#+begin_src bash
+sudo apt-get install elpa-verbiste verbiste
+#+end_src
+
+**** Manual Installation
+1. Clone this repository:
+   #+begin_src bash
+   git clone https://github.com/aygp-dr/verbiste.el.git
+   #+end_src
+
+2. Add the following to your Emacs init file:
+   #+begin_src emacs-lisp
+   (add-to-list 'load-path "/path/to/verbiste.el")
+   (require 'verbiste)
+   #+end_src
+
+** Usage
+
+*** Basic Commands
+
+- ~M-x verbiste-french-conjugation~: Conjugate a French verb
+- ~M-x verbiste-italian-conjugation~: Conjugate an Italian verb
+- ~M-x verbiste-french-deconjugation~: Find the infinitive form of a conjugated French verb
+- ~M-x verbiste-italian-deconjugation~: Find the infinitive form of a conjugated Italian verb
+
+*** Keybindings
+
+| Key       | Function                      |
+|-----------+-------------------------------|
+| C-c v f c | verbiste-french-conjugation   |
+| C-c v f d | verbiste-french-deconjugation |
+| C-c v i c | verbiste-italian-conjugation  |
+| C-c v i d | verbiste-italian-deconjugation |
+
+** Implementation Notes
+
+This package works with the verbiste XML files located at:
+
+- ~/usr/local/share/verbiste-0.1/conjugation-fr.xml~
+- ~/usr/local/share/verbiste-0.1/verbs-fr.xml~
+- ~/usr/local/share/verbiste-0.1/conjugation-it.xml~
+- ~/usr/local/share/verbiste-0.1/verbs-it.xml~
+
+The implementation can work in two modes:
+1. Using the verbiste command-line tools via shell commands
+2. Direct XML parsing using Emacs Lisp (more efficient but more complex)
+
+** French Verb Examples
+
+Common French verbs for testing:
+- être (to be)
+- avoir (to have)
+- aller (to go)
+- faire (to do/make)
+- voir (to see)
+- pouvoir (to be able to)
+- vouloir (to want)
+- parler (to speak)
+- manger (to eat)
+- finir (to finish)
+
+** Development Plan
+
+1. Implement command-line interface to verbiste
+2. Create display buffer for conjugation results
+3. Add direct XML parsing for better performance
+4. Implement completion for verb input
+5. Add support for theme-aware display
+6. Implement mode-line indicators for verbs under point
+
+** Resources
+
+- [[http://sarrazip.com/dev/verbiste.html][Verbiste Official Website]]
+- [[/usr/local/share/verbiste-0.1/][Local Verbiste Data Files]]
+
+** License
+
+GPL v2 or later, consistent with Verbiste itself.

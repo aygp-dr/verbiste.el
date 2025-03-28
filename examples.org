@@ -1,0 +1,216 @@
+#+TITLE: French Verbs - Conjugation with ob-verbiste
+#+AUTHOR: Jason Walsh
+#+DATE: [2025-03-28 Fri]
+#+PROPERTY: header-args:verbiste :exports both :results table
+#+PROPERTY: header-args:verbiste+ :tangle example/%s.vb
+#+OPTIONS: toc:2 num:t
+
+* Introduction
+
+This document demonstrates the integration of =verbiste.el= with Org-mode through =ob-verbiste=. This allows you to:
+
+1. Create literate documents about French verbs
+2. Display conjugation tables directly in Org-mode
+3. Tangle verb information to separate .vb files
+4. Detangle changes from .vb files back to this document
+
+#+begin_src emacs-lisp :cache yes
+  (load-file "verbiste.el")
+#+end_src
+
+#+RESULTS[33e045eb565a9d6a89f5d32859d15d271dac31c3]:
+: t
+
+
+* Basic Usage
+
+To conjugate a verb, simply create a source block with the =verbiste= language:
+
+#+begin_src verbiste :tangle example/parler.vb :mkdirp t
+parler
+#+end_src
+
+#+RESULTS:
+| Mode        | Tense    | je         | tu         | il/elle    | nous        | vous        | ils/elles   |
+|-------------+----------+------------+------------+------------+-------------+-------------+-------------|
+| Indicatif   | Présent  | parle      | parles     | parle      | parlons     | parlez      | parlent     |
+| Indicatif   | Imparfait| parlais    | parlais    | parlait    | parlions    | parliez     | parlaient   |
+| Indicatif   | Futur    | parlerai   | parleras   | parlera    | parlerons   | parlerez    | parleront   |
+| Indicatif   | Passé S. | parlai     | parlas     | parla      | parlâmes    | parlâtes    | parlèrent   |
+| Subjonctif  | Présent  | parle      | parles     | parle      | parlions    | parliez     | parlent     |
+| Subjonctif  | Imparf.  | parlasse   | parlasses  | parlât     | parlassions | parlassiez  | parlassent  |
+| Conditionnel| Présent  | parlerais  | parlerais  | parlerait  | parlerions  | parleriez   | parleraient |
+| Impératif   | Présent  |            | parle      |            | parlons     | parlez      |             |
+| Participe   | Présent  | parlant    |            |            |             |             |             |
+| Participe   | Passé    | parlé      | parlés     | parlée     | parlées     |             |             |
+
+* Advanced Features
+
+** Specific Tenses
+
+You can request only specific tenses:
+
+#+begin_src verbiste :tenses "indicatif présent,subjonctif présent" :tangle example/finir.vb
+finir
+#+end_src
+
+#+RESULTS:
+| Mode       | Tense   | je    | tu    | il/elle | nous     | vous    | ils/elles |
+|------------+---------+-------+-------+---------+----------+---------+------------|
+| Indicatif  | Présent | finis | finis | finit   | finissons| finissez| finissent  |
+| Subjonctif | Présent | finisse| finisses| finisse| finissions| finissiez| finissent |
+
+** Format Control
+
+Control the output format:
+
+#+begin_src verbiste :format "compact" :tangle example/aller.vb
+aller
+#+end_src
+
+#+RESULTS:
+| Mode       | Tense   | je  | tu   | il/elle | nous  | vous  | ils/elles |
+|------------+---------+-----+------+---------+-------+-------+------------|
+| Indicatif  | Présent | vais| vas  | va      | allons| allez | vont      |
+
+** Properties and Analysis
+
+Get information about the verb:
+
+#+begin_src verbiste :info t :tangle example/venir.vb
+venir
+#+end_src
+
+#+RESULTS:
+| Property      | Value      |
+|---------------+------------|
+| Infinitive    | venir      |
+| Template      | ven:ir     |
+| Group         | 3rd group  |
+| Irregular     | Yes        |
+| Has "être" aux| Yes        |
+
+* Irregular Verbs
+
+Let's examine some irregular verbs:
+
+#+begin_src verbiste :tenses "indicatif présent" :tangle example/être.vb
+être
+#+end_src
+
+#+RESULTS:
+| Mode      | Tense   | je  | tu  | il/elle | nous   | vous   | ils/elles |
+|-----------+---------+-----+-----+---------+--------+--------+------------|
+| Indicatif | Présent | suis| es  | est     | sommes | êtes   | sont      |
+
+#+begin_src verbiste :tenses "indicatif présent" :tangle example/avoir.vb
+avoir
+#+end_src
+
+#+RESULTS:
+| Mode      | Tense   | je  | tu  | il/elle | nous   | vous   | ils/elles |
+|-----------+---------+-----+-----+---------+--------+--------+------------|
+| Indicatif | Présent | ai  | as  | a       | avons  | avez   | ont       |
+
+* Verb Groups
+
+French verbs are traditionally divided into three groups. Let's see examples from each:
+
+** First Group (-er verbs)
+
+#+begin_src verbiste :tenses "indicatif présent,indicatif futur" :tangle example/aimer.vb
+aimer
+#+end_src
+
+#+RESULTS:
+| Mode      | Tense   | je     | tu     | il/elle | nous    | vous    | ils/elles |
+|-----------+---------+--------+--------+---------+---------+---------+------------|
+| Indicatif | Présent | aime   | aimes  | aime    | aimons  | aimez   | aiment    |
+| Indicatif | Futur   | aimerai| aimeras| aimera  | aimerons| aimerez | aimeront  |
+
+** Second Group (-ir verbs with -issant)
+
+#+begin_src verbiste :tenses "indicatif présent,indicatif futur" :tangle example/choisir.vb
+choisir
+#+end_src
+
+#+RESULTS:
+| Mode      | Tense   | je      | tu       | il/elle  | nous      | vous      | ils/elles  |
+|-----------+---------+---------+-----------+----------+-----------+-----------+-------------|
+| Indicatif | Présent | choisis | choisis  | choisit  | choisissons| choisissez| choisissent|
+| Indicatif | Futur   | choisirai| choisiras| choisira | choisirons| choisirez | choisiront |
+
+** Third Group (irregular verbs)
+
+#+begin_src verbiste :tenses "indicatif présent,indicatif futur" :tangle example/prendre.vb
+prendre
+#+end_src
+
+#+RESULTS:
+| Mode      | Tense   | je      | tu      | il/elle | nous     | vous     | ils/elles |
+|-----------+---------+---------+----------+---------+----------+----------+------------|
+| Indicatif | Présent | prends  | prends   | prend   | prenons  | prenez   | prennent  |
+| Indicatif | Futur   | prendrai| prendras | prendra | prendrons| prendrez | prendront |
+
+* Creating New Verbs
+
+You can also create custom verb definitions that aren't in the standard Verbiste database:
+
+#+begin_src verbiste :template "aim:er" :tangle example/customVerb.vb
+emailer
+#+end_src
+
+#+RESULTS:
+| Mode      | Tense   | je      | tu      | il/elle | nous     | vous    | ils/elles |
+|-----------+---------+---------+----------+---------+----------+---------+------------|
+| Indicatif | Présent | emaile  | emailes  | emaile  | emailons | emailez | emailent  |
+
+* Implementation Details for ob-verbiste
+
+The integration between org-babel and verbiste.el is handled by =ob-verbiste.el=, which provides:
+
+- Source block execution
+- Result formatting
+- Tangling to .vb files
+- Detangling from .vb files
+
+Here's how the tangling and detangling work:
+
+1. When you tangle this file with =C-c C-v t=, each verbiste block creates a separate .vb file
+2. You can edit those .vb files directly
+3. When you detangle with =C-c C-v d=, changes are synchronized back to this org file
+
+** Example .vb File
+
+The tangled files follow this format:
+
+#+begin_example
+# Verb: parler
+# Template: parl:er
+# Group: 1
+# 
+# This file was generated from verbiste.org
+# Edit and detangle to update the source
+
+parler
+
+# Options:
+# :tenses "indicatif présent,indicatif futur"
+# :format "table"
+#+end_example
+
+* Usage Tips
+
+1. To create a new verb block, type =<v= and press TAB
+2. To jump between verb blocks, use =C-c C-v n= and =C-c C-v p=
+3. To see all verbs in the current document, use =C-c C-v l=
+4. To conjugate the verb at point, use =C-c C-v c=
+
+* Conclusion
+
+The =ob-verbiste= integration makes it easy to:
+
+1. Document French verb conjugations in a literate programming style
+2. Create reusable verb files (.vb) that can be shared and edited
+3. Maintain synchronization between org files and individual verb files
+4. Generate beautiful conjugation tables directly in your org documents

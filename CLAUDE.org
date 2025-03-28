@@ -1,0 +1,33 @@
+#+TITLE: CLAUDE Configuration
+#+AUTHOR: jwalsh
+#+DATE: 2025-03-28
+
+* Build Commands
+- Compile: ~make compile~
+- Generate JSON data: ~make verbiste-json~
+- Generate Org docs: ~make verbiste-org~
+- Run tests: ~make test~
+- Run single test: ~$(EMACS) -Q -batch -l ert -l verbiste.el -l verbiste-tests.el -f ert-run-tests-batch -pattern "test-pattern"~
+- Check dependencies: ~make check-deps~
+- Show help: ~make help~
+
+* Code Style Guidelines
+- *Formatting*: Standard Emacs Lisp style with proper indentation (2 spaces)
+- *Naming*: 
+  - Public functions: ~verbiste-function-name~
+  - Internal functions: ~verbiste--internal-function~
+  - Variables: ~verbiste-variable-name~
+- *Documentation*: 
+  - Provide docstrings for all functions and customizable variables
+  - Use Org-mode for external documentation
+- *Error Handling*: Use ~condition-case~ for proper error handling
+- *Loading*: Enable lexical binding with ~;;; -*- lexical-binding: t -*-~
+
+* Git Workflow
+- Conventional Commits style
+  - Format: ~<type>(<scope>): <description>~
+  - Example: ~feat(conjugation): add Italian verb support~
+  - Use trailers for attribution:
+    #+begin_example
+    git commit --trailer "Co-authored-by: Claude <noreply@anthropic.com>" -m "feat(api): implement verb lookup function"
+    #+end_example
