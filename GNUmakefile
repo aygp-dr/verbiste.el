@@ -1,17 +1,21 @@
 # Verbiste.el - Emacs interface to Verbiste French/Italian verb conjugation
 # GNUmakefile - For use with gmake (GNU Make)
 
-.PHONY: all build compile install test clean check-deps help verbiste-json verbiste-org verbiste-all
+.PHONY: all build compile install test clean check-deps help lint package-lint package checkdoc verbiste-json verbiste-org verbiste-all dist
 
 # Variables
 EMACS = emacs
 BATCH = $(EMACS) -Q -batch
-ELCFILES = verbiste.elc ob-verbiste.elc
+ELFILES = verbiste.el ob-verbiste.el
+ELCFILES = $(ELFILES:.el=.elc)
 TESTFILES = verbiste-tests.el
+PKG_VERSION = $(shell grep -o "Version: [0-9.]*" verbiste.el | cut -d' ' -f2)
+PKG_NAME = verbiste-$(PKG_VERSION)
 
 # Directory definitions
 VERBISTE_XML_DIR = /usr/local/share/verbiste-0.1
 DATA_DIR = ./data
+DIST_DIR = ./dist
 
 # Default target shows help
 .DEFAULT_GOAL := help
@@ -49,8 +53,27 @@ check-deps: $(VERBISTE_XML_DIR)/verbs-fr.xml $(VERBISTE_XML_DIR)/conjugation-fr.
 test:                             # Run tests
 	$(BATCH) -l ert -l verbiste.el -l $(TESTFILES) -f ert-run-tests-batch-and-exit
 
+lint: package-lint checkdoc       # Run all linters
+
+package-lint:                     # Check package headers with package-lint
+	$(BATCH) \
+	  --eval "(require 'package)" \
+	  --eval "(add-to-list 'package-archives '(\"melpa\" . \"https://melpa.org/packages/\") t)" \
+	  --eval "(package-initialize)" \
+	  --eval "(unless (package-installed-p 'package-lint) (package-refresh-contents) (package-install 'package-lint))" \
+	  --eval "(require 'package-lint)" \
+	  --eval "(dolist (file '($(ELFILES))) (package-lint-batch-and-exit file))"
+
+checkdoc:                         # Check documentation with checkdoc
+	$(BATCH) \
+	  --eval "(require 'checkdoc)" \
+	  --eval "(dolist (file '($(ELFILES))) (checkdoc-file file))"
+
 # Directory targets
 $(DATA_DIR):
+	mkdir -p $@
+
+$(DIST_DIR):
 	mkdir -p $@
 
 # JSON conversion
@@ -97,6 +120,15 @@ ORG_FILES = $(DATA_DIR)/verbs-fr.org $(DATA_DIR)/conjugation-fr.org \
 verbiste-json: $(JSON_FILES)      # Convert all XML to JSON
 verbiste-org: $(ORG_FILES)        # Generate all org docs
 verbiste-all: verbiste-json verbiste-org # Run both conversions
+
+package: $(ELFILES) $(TESTFILES)   # Create package suitable for submission to MELPA
+	@echo "Package files verified for MELPA submission"
+	@echo "To submit to MELPA, send a pull request to:"
+	@echo "  https://github.com/melpa/melpa"
+
+dist: clean compile test lint | $(DIST_DIR)  # Create distribution package
+	tar -cf $(DIST_DIR)/$(PKG_NAME).tar $(ELFILES) $(ELCFILES) $(TESTFILES) README.org CLAUDE.org GNUmakefile examples.org
+	@echo "Package created at $(DIST_DIR)/$(PKG_NAME).tar"
 
 # Clean targets
 clean: clean-json clean-org       # Clean everything
