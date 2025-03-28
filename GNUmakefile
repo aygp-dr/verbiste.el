@@ -82,12 +82,12 @@ $(DATA_DIR)/%.json: $(VERBISTE_XML_DIR)/%.xml | $(DATA_DIR)
 	  --eval "(require 'json)" \
 	  --eval "(require 'xml)" \
 	  --eval "(setq xml-data (with-temp-buffer \
-	            (insert-file-contents \"$<\") \
-	            (xml-parse-region (point-min) (point-max))))" \
+		    (insert-file-contents \"$<\") \
+		    (xml-parse-region (point-min) (point-max))))" \
 	  --eval "(setq json-data (json-encode xml-data))" \
 	  --eval "(with-temp-file \"$@\" \
-	            (insert json-data) \
-	            (json-pretty-print-buffer))" \
+		    (insert json-data) \
+		    (json-pretty-print-buffer))" \
 	  --eval "(message \"Converted $< to $@\")"
 
 # Org generation
@@ -96,26 +96,26 @@ $(DATA_DIR)/%.org: $(DATA_DIR)/%.json
 	  --eval "(require 'json)" \
 	  --eval "(require 'org)" \
 	  --eval "(let ((json-str (with-temp-buffer \
-	            (insert-file-contents \"$<\") \
-	            (buffer-string)))) \
-	          (with-temp-file \"$@\" \
-	            (insert \"#+TITLE: Verbiste Data: $(notdir $<)\n\") \
-	            (insert \"#+PROPERTY: header-args:json :tangle $<\n\n\") \
-	            (insert \"* Verbiste $(notdir $<) Structure\n\n\") \
-	            (insert \"#+begin_src json\n\") \
-	            (insert json-str) \
-	            (insert \"#+end_src\n\n\") \
-	            (insert \"* Usage Examples\n\n\") \
-	            (insert \"#+begin_src emacs-lisp :results output\n\") \
-	            (insert \"(let ((json-data (json-read-file \\\"$<\\\")))\\n\") \
-	            (insert \"  (message \\\"Total entries: %d\\\" (length json-data)))\\n\") \
-	            (insert \"#+end_src\")))"
+		    (insert-file-contents \"$<\") \
+		    (buffer-string)))) \
+		  (with-temp-file \"$@\" \
+		    (insert \"#+TITLE: Verbiste Data: $(notdir $<)\n\") \
+		    (insert \"#+PROPERTY: header-args:json :tangle $<\n\n\") \
+		    (insert \"* Verbiste $(notdir $<) Structure\n\n\") \
+		    (insert \"#+begin_src json\n\") \
+		    (insert json-str) \
+		    (insert \"#+end_src\n\n\") \
+		    (insert \"* Usage Examples\n\n\") \
+		    (insert \"#+begin_src emacs-lisp :results output\n\") \
+		    (insert \"(let ((json-data (json-read-file \\\"$<\\\")))\\n\") \
+		    (insert \"  (message \\\"Total entries: %d\\\" (length json-data)))\\n\") \
+		    (insert \"#+end_src\")))"
 
 JSON_FILES = $(DATA_DIR)/verbs-fr.json $(DATA_DIR)/conjugation-fr.json \
-             $(DATA_DIR)/verbs-it.json $(DATA_DIR)/conjugation-it.json
+	     $(DATA_DIR)/verbs-it.json $(DATA_DIR)/conjugation-it.json
 
 ORG_FILES = $(DATA_DIR)/verbs-fr.org $(DATA_DIR)/conjugation-fr.org \
-            $(DATA_DIR)/verbs-it.org $(DATA_DIR)/conjugation-it.org
+	    $(DATA_DIR)/verbs-it.org $(DATA_DIR)/conjugation-it.org
 
 verbiste-json: $(JSON_FILES)      # Convert all XML to JSON
 verbiste-org: $(ORG_FILES)        # Generate all org docs
@@ -151,3 +151,12 @@ help:                             # Show this help
 	@echo
 	@echo "Note: This is a GNUmakefile designed for gmake, which offers better"
 	@echo "      compatibility across OSX and Linux than standard make."
+
+
+data/french_verbs_list.txt: verbiste_extract.xsl /usr/local/share/verbiste-0.1/verbs-fr.xml # Show a simple list of all verbs
+	xml tr $^ > $@
+
+PYTHON := poetry run python3
+
+data/french_verb_clusters.json: generate_verb_clusters.py data/french_verbs_list.txt # Verb -> List[Verb] of similar
+	$(PYTHON) $^ > $@
