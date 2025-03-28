@@ -3,15 +3,19 @@
 #+DATE: 2025-03-28
 
 * Build Commands
-- Compile: ~make compile~
+- Compile: ~make compile~ or ~make build~
 - Generate JSON data: ~make verbiste-json~
 - Generate Org docs: ~make verbiste-org~
 - Run tests: ~make test~
 - Run single test: ~$(EMACS) -Q -batch -l ert -l verbiste.el -l verbiste-tests.el -f ert-run-tests-batch -pattern "test-pattern"~
+- Lint code: ~make lint~ (runs package-lint and checkdoc)
 - Check dependencies: ~make check-deps~
+- Python tools: ~poetry run python -m verbiste_tools.module_name~
+- Python linting: ~poetry run black verbiste_tools~, ~poetry run mypy verbiste_tools~, ~poetry run ruff verbiste_tools~
 - Show help: ~make help~
 
 * Code Style Guidelines
+** Emacs Lisp
 - *Formatting*: Standard Emacs Lisp style with proper indentation (2 spaces)
 - *Naming*: 
   - Public functions: ~verbiste-function-name~
@@ -22,6 +26,14 @@
   - Use Org-mode for external documentation
 - *Error Handling*: Use ~condition-case~ for proper error handling
 - *Loading*: Enable lexical binding with ~;;; -*- lexical-binding: t -*-~
+
+** Python
+- *Formatting*: Black with 88 character line length
+- *Imports*: Standard lib → third-party → local modules
+- *Types*: Full type annotations required (mypy verification)
+- *Linting*: Ruff with E, F, B, I rule sets
+- *Naming*: PEP8 snake_case style
+- *Documentation*: Google-style docstrings
 
 * Git Workflow
 - Conventional Commits style
