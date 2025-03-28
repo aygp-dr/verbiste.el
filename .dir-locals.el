@@ -1,0 +1,16 @@
+;;; Directory Local Variables
+;;; For more information see (info "(emacs) Directory Variables")
+
+((nil . ((fill-column . 80)
+         (indent-tabs-mode . nil)))
+ (org-mode . ((org-confirm-babel-evaluate . nil)
+              (org-src-fontify-natively . t)
+              (org-babel-default-header-args:python . ((:session . "french-verbs")
+                                                      (:exports . "both")
+                                                      (:results . "output")))
+              (org-babel-default-header-args:http . ((:pretty . t)
+                                                   (:results . "drawer")))
+              (org-babel-default-header-args:sh . ((:results . "output")
+                                                 (:exports . "both")))))
+ (python-mode . ((python-indent-offset . 4)))
+ (emacs-lisp-mode . ((indent-tabs-mode . nil))))

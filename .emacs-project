@@ -1,0 +1,4 @@
+(:name "verbiste.el"
+ :file-list ("*.el" "*.org" "*.py" "*.json" "*.http")
+ :ignored-file-list ("*~" "*.elc" "__pycache__" "*.pyc")
+ :init-script "~/.config/emacs/project-init-scripts/verbiste.el")

@@ -1,0 +1,47 @@
+POST http://localhost:11434/api/embeddings
+Content-Type: application/json
+
+{
+  "model": "nomic-embed-text",
+  "prompt": "aller"
+}
+
+###
+
+POST http://localhost:11434/api/embeddings
+Content-Type: application/json
+
+{
+  "model": "nomic-embed-text",
+  "prompt": "venir"
+}
+
+###
+
+POST http://localhost:11434/api/embeddings
+Content-Type: application/json
+
+{
+  "model": "nomic-embed-text",
+  "prompt": "faire"
+}
+
+###
+
+POST http://localhost:11434/api/embeddings
+Content-Type: application/json
+
+{
+  "model": "nomic-embed-text",
+  "prompt": "dire"
+}
+
+###
+
+POST http://localhost:11434/api/embeddings
+Content-Type: application/json
+
+{
+  "model": "nomic-embed-text",
+  "prompt": "voir"
+}

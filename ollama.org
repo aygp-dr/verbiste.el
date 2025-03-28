@@ -1,0 +1,614 @@
+#+TITLE: French Verb Embedding Analysis
+#+AUTHOR: jwalsh
+#+DATE: 2025-03-28
+#+PROPERTY: header-args :results output :exports both 
+#+PROPERTY: header-args:sh :results output :exports both
+#+PROPERTY: header-args:http :pretty :results drawer
+#+PROPERTY: header-args:python :session french-verbs :results output :exports both
+#+PROPERTY: header-args:emacs-lisp :results silent
+
+* Introduction
+This file explores using Ollama's embedding models to analyze semantic relationships between French verbs.
+
+* Ollama Setup and Environment Testing
+:PROPERTIES:
+:header-args:sh: :dir .
+:END:
+
+** Check available embedding models
+#+begin_src sh
+ollama list | grep -i embed
+#+end_src
+
+#+RESULTS:
+: nomic-embed-text:latest       	0a109f422b47	274 MB	22 minutes ago	
+
+** Verify that Ollama server is running
+#+begin_src sh
+curl -s http://localhost:11434/api/tags | jq -r  '.models[]|.name' 
+#+end_src
+
+#+RESULTS:
+: nomic-embed-text:latest
+: paraphrase-multilingual:latest
+
+* Testing Embedding Models
+:PROPERTIES:
+:header-args:http: :results drawer :exports both
+:END:
+
+** Test nomic-embed-text with a single verb
+#+NAME: embed-aller
+#+begin_src restclient :tangle example/nomic-embed-text-aller.http :mkdirp yes
+POST http://localhost:11434/api/embeddings
+Content-Type: application/json
+
+{
+  "model": "nomic-embed-text",
+  "prompt": "aller"
+}
+#+end_src
+
+** Test paraphrase-multilingual with a single verb
+#+NAME: multilingual-parler
+#+begin_src restclient :tangle example/paraphrase-multilingual-parler.http :mkdirp yes
+POST http://localhost:11434/api/embeddings
+Content-Type: application/json
+
+{
+  "model": "paraphrase-multilingual",
+  "prompt": "parler"
+}
+#+end_src
+
+** Batch of common verbs for nomic-embed-text
+#+NAME: nomic-common-verbs
+#+begin_src restclient :tangle example/nomic-common-verbs.http :mkdirp yes
+POST http://localhost:11434/api/embeddings
+Content-Type: application/json
+
+{
+  "model": "nomic-embed-text",
+  "prompt": "aller"
+}
+
+###
+
+POST http://localhost:11434/api/embeddings
+Content-Type: application/json
+
+{
+  "model": "nomic-embed-text",
+  "prompt": "venir"
+}
+
+###
+
+POST http://localhost:11434/api/embeddings
+Content-Type: application/json
+
+{
+  "model": "nomic-embed-text",
+  "prompt": "faire"
+}
+
+###
+
+POST http://localhost:11434/api/embeddings
+Content-Type: application/json
+
+{
+  "model": "nomic-embed-text",
+  "prompt": "dire"
+}
+
+###
+
+POST http://localhost:11434/api/embeddings
+Content-Type: application/json
+
+{
+  "model": "nomic-embed-text",
+  "prompt": "voir"
+}
+#+end_src
+
+* Utilities
+:PROPERTIES:
+:header-args:emacs-lisp: :results silent :exports both
+:END:
+
+** Emacs Lisp for comparing embeddings
+#+NAME: embedding-utils
+#+begin_src emacs-lisp :tangle verbiste_tools/embedding-utils.el :mkdirp yes
+(defun extract-embedding-from-json (json-string)
+  "Extract embedding vector from JSON response string."
+  (let* ((json-object-type 'hash-table)
+         (json-array-type 'vector)
+         (json-key-type 'string)
+         (json (json-read-from-string json-string)))
+    (gethash "embedding" json)))
+
+(defun cosine-similarity (vec1 vec2)
+  "Calculate cosine similarity between two vectors."
+  (let ((dot-product 0)
+        (norm1 0)
+        (norm2 0))
+    (dotimes (i (length vec1))
+      (setq dot-product (+ dot-product (* (aref vec1 i) (aref vec2 i))))
+      (setq norm1 (+ norm1 (* (aref vec1 i) (aref vec1 i))))
+      (setq norm2 (+ norm2 (* (aref vec2 i) (aref vec2 i)))))
+    (/ dot-product (* (sqrt norm1) (sqrt norm2)))))
+
+(defun compare-embeddings (json1 json2)
+  "Compare embeddings from two JSON response strings."
+  (let ((emb1 (extract-embedding-from-json json1))
+        (emb2 (extract-embedding-from-json json2)))
+    (cosine-similarity emb1 emb2)))
+
+(provide 'embedding-utils)
+#+end_src
+
+* Create Verb List
+:PROPERTIES:
+:header-args:python: :session french-verbs :results output :exports both
+:END:
+
+** Generate a list of common French verbs
+#+NAME: verb-list
+#+begin_src python :tangle verbiste_tools/french_verbs.json :mkdirp yes
+import json
+
+# Common French verbs with their infinitive forms
+french_verbs = [
+    "aller",    # to go
+    "venir",    # to come
+    "faire",    # to do/make
+    "dire",     # to say
+    "voir",     # to see
+    "savoir",   # to know (fact)
+    "pouvoir",  # to be able to
+    "vouloir",  # to want
+    "devoir",   # to have to
+    "prendre",  # to take
+    "parler",   # to speak
+    "manger",   # to eat
+    "boire",    # to drink
+    "dormir",   # to sleep
+    "courir"    # to run
+]
+
+# Save to file for later use
+with open("french_verbs.json", "w") as f:
+    json.dump(french_verbs, f, indent=2)
+
+print(f"Created list of {len(french_verbs)} French verbs and saved to french_verbs.json")
+#+end_src
+
+* Complete Python Implementation
+:PROPERTIES:
+:header-args:python: :session french-verbs :tangle verbiste_tools/embed_with_ollama.py :exports both :mkdirp yes
+:END:
+
+** Import dependencies
+#+NAME: imports
+#+begin_src python
+#!/usr/bin/env python3
+import requests
+import json
+import numpy as np
+import matplotlib.pyplot as plt
+from sklearn.metrics.pairwise import cosine_similarity
+from sklearn.decomposition import PCA
+import click
+import os
+import time
+import sys
+#+end_src
+
+** Define embedding function with robust error handling
+#+NAME: get-embeddings
+#+begin_src python
+def get_embeddings(texts, model="nomic-embed-text", max_retries=3, retry_delay=2):
+    """Get embeddings from Ollama API with retry logic"""
+    embeddings = []
+    successful_texts = []
+    
+    for text in texts:
+        for attempt in range(max_retries):
+            try:
+                click.echo(f"Processing: {text}")
+                response = requests.post(
+                    "http://localhost:11434/api/embeddings",
+                    json={
+                        "model": model,
+                        "prompt": text
+                    },
+                    timeout=10  # Add timeout to avoid hanging
+                )
+                
+                if response.status_code == 200:
+                    result = response.json()
+                    embeddings.append(result["embedding"])
+                    successful_texts.append(text)
+                    break  # Success, exit retry loop
+                else:
+                    click.echo(f"Error for text '{text}': {response.text}", err=True)
+                    if attempt < max_retries - 1:
+                        click.echo(f"Retrying in {retry_delay} seconds...", err=True)
+                        time.sleep(retry_delay)
+            except (requests.exceptions.ConnectionError, 
+                    requests.exceptions.Timeout,
+                    requests.exceptions.RequestException) as e:
+                click.echo(f"Request failed for '{text}': {str(e)}", err=True)
+                if attempt < max_retries - 1:
+                    click.echo(f"Retrying in {retry_delay} seconds...", err=True)
+                    time.sleep(retry_delay)
+                else:
+                    click.echo(f"Max retries reached for '{text}'. Skipping.", err=True)
+    
+    return np.array(embeddings), successful_texts
+#+end_src
+
+** Visualization functions
+#+NAME: visualization
+#+begin_src python
+def plot_similarity_matrix(matrix, labels, output_file):
+    """Plot and save a similarity matrix as a heatmap"""
+    plt.figure(figsize=(10, 8))
+    plt.imshow(matrix, cmap='viridis')
+    plt.colorbar()
+    plt.xticks(np.arange(len(labels)), labels, rotation=45)
+    plt.yticks(np.arange(len(labels)), labels)
+    plt.title('Semantic Similarity Between French Verbs')
+    plt.tight_layout()
+    plt.savefig(output_file)
+    plt.close()
+    
+def plot_pca(embeddings, labels, output_file):
+    """Create and save a PCA plot of embeddings"""
+    # Reduce to 2D for visualization
+    pca = PCA(n_components=2)
+    embeddings_2d = pca.fit_transform(embeddings)
+    
+    # Plot
+    plt.figure(figsize=(10, 8))
+    plt.scatter(embeddings_2d[:, 0], embeddings_2d[:, 1], s=100)
+    
+    # Add labels
+    for i, label in enumerate(labels):
+        plt.annotate(label, (embeddings_2d[i, 0], embeddings_2d[i, 1]), 
+                     fontsize=12, ha='center', va='center')
+    
+    plt.title('PCA of French Verb Embeddings')
+    plt.grid(True, linestyle='--', alpha=0.7)
+    plt.savefig(output_file)
+    plt.close()
+#+end_src
+
+** Main CLI function
+#+NAME: main
+#+begin_src python
+@click.command()
+@click.option('--input-file', '-i', type=click.Path(exists=True), 
+              help='JSON file containing a list of French verbs')
+@click.option('--verbs', '-v', multiple=True, 
+              help='Specify verbs directly (can be used multiple times)')
+@click.option('--model', '-m', default='nomic-embed-text', 
+              help='Embedding model to use from Ollama')
+@click.option('--output', '-o', default='french_verb_similarity.png', 
+              help='Output file for similarity matrix visualization')
+@click.option('--pca', is_flag=True, 
+              help='Create PCA visualization of embeddings')
+@click.option('--save-data', '-s', is_flag=True, 
+              help='Save embeddings and similarity matrix')
+@click.option('--max-retries', default=3, type=int,
+              help='Maximum number of retry attempts for API calls')
+def main(input_file, verbs, model, output, pca, save_data, max_retries):
+    """Analyze semantic similarities between French verbs using embeddings from Ollama."""
+    
+    # Get verbs from file, command line, or use defaults
+    if input_file and os.path.exists(input_file):
+        with open(input_file, 'r') as f:
+            french_verbs = json.load(f)
+        click.echo(f"Loaded {len(french_verbs)} verbs from {input_file}")
+    elif verbs:
+        french_verbs = list(verbs)
+        click.echo(f"Using {len(french_verbs)} verbs provided via command line")
+    else:
+        # Example French verbs as default
+        french_verbs = [
+            "aller", "venir", "faire", "dire", "voir", 
+            "savoir", "pouvoir", "vouloir", "devoir", "prendre",
+            "parler", "manger", "boire", "dormir", "courir"
+        ]
+        click.echo(f"Using {len(french_verbs)} default example verbs")
+    
+    # Get embeddings with retry logic
+    click.echo(f"Getting embeddings for {len(french_verbs)} verbs using model {model}...")
+    embeddings, successful_verbs = get_embeddings(french_verbs, model, max_retries)
+    
+    if len(embeddings) == 0:
+        click.echo("Failed to get any embeddings. Exiting.", err=True)
+        sys.exit(1)
+    
+    # Let user know if some verbs failed
+    if len(successful_verbs) < len(french_verbs):
+        click.echo(f"Warning: Only obtained embeddings for {len(successful_verbs)}/{len(french_verbs)} verbs.")
+        # Update the verb list to only include successful ones
+        french_verbs = successful_verbs
+    
+    # Calculate similarity matrix
+    click.echo("Calculating similarity matrix...")
+    sim_matrix = cosine_similarity(embeddings)
+    
+    # Plot similarity matrix
+    base_filename = os.path.splitext(output)[0]
+    click.echo(f"Plotting similarity matrix and saving to {output}...")
+    plot_similarity_matrix(sim_matrix, french_verbs, output)
+    
+    # Optionally create PCA plot
+    if pca:
+        pca_file = f"{base_filename}_pca.png"
+        click.echo(f"Creating PCA visualization and saving to {pca_file}...")
+        plot_pca(embeddings, french_verbs, pca_file)
+    
+    # Save data if requested
+    if save_data:
+        # Save similarity matrix
+        matrix_file = f"{base_filename}_matrix.npy"
+        np.save(matrix_file, sim_matrix)
+        click.echo(f"Similarity matrix saved to {matrix_file}")
+        
+        # Save embeddings
+        embeddings_file = f"{base_filename}_embeddings.npy"
+        np.save(embeddings_file, embeddings)
+        click.echo(f"Raw embeddings saved to {embeddings_file}")
+        
+        # Save list of successful verbs
+        verbs_file = f"{base_filename}_verbs.json"
+        with open(verbs_file, 'w') as f:
+            json.dump(french_verbs, f, indent=2)
+        click.echo(f"Verb list saved to {verbs_file}")
+    
+    click.echo("Done!")
+#+end_src
+
+** Script entry point
+#+NAME: entry-point
+#+begin_src python
+if __name__ == "__main__":
+    main()
+#+end_src
+
+* Example Usage and Analysis
+:PROPERTIES:
+:header-args:sh: :dir . :var MODEL="nomic-embed-text"
+:END:
+
+** Run the embedding tool from command line
+#+begin_src sh :tangle ./run-embedding-analysis.sh :shebang "#!/bin/sh" :mkdirp yes
+# Ensure Ollama is running
+ollama_status=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:11434/api/tags)
+
+if [ "$ollama_status" != "200" ]; then
+    echo "Ollama server is not running. Please start it with 'ollama serve'"
+    exit 1
+fi
+
+# Check if models are available
+if ! ollama list | grep -q "nomic-embed-text"; then
+    echo "Pulling nomic-embed-text model..."
+    ollama pull nomic-embed-text
+fi
+
+# Run the embedding analysis with both models
+echo "Running analysis with nomic-embed-text..."
+python verbiste_tools/embed_with_ollama.py --model nomic-embed-text --pca --save-data
+
+echo "Done! Check french_verb_similarity.png and french_verb_similarity_pca.png for results."
+#+end_src
+
+** Interactive analysis in Babel
+#+begin_src sh :var VERB1="aller" VERB2="venir" :results output
+# Analyze similarity between specific verbs
+python -c "
+import json
+import numpy as np
+from sklearn.metrics.pairwise import cosine_similarity
+
+# Load saved data
+try:
+    embeddings = np.load('french_verb_similarity_embeddings.npy')
+    with open('french_verb_similarity_verbs.json', 'r') as f:
+        verbs = json.load(f)
+
+    # Find indices of specific verbs
+    verb1_idx = verbs.index('${VERB1}')
+    verb2_idx = verbs.index('${VERB2}')
+    
+    # Compare verb pair
+    sim = cosine_similarity([embeddings[verb1_idx]], [embeddings[verb2_idx]])[0][0]
+    print(f\"Semantic similarity between '${VERB1}' and '${VERB2}': {sim:.4f}\")
+except (FileNotFoundError, ValueError) as e:
+    print(f\"Error: {e} - Run the embedding analysis script first.\")
+"
+#+end_src
+
+* Advanced Analysis: Verb Clusters
+:PROPERTIES:
+:header-args:python: :session clusters :tangle verbiste_tools/cluster_verbs.py :exports both :mkdirp yes
+:END:
+
+** Import dependencies
+#+begin_src python
+#!/usr/bin/env python3
+import numpy as np
+import matplotlib.pyplot as plt
+import json
+from sklearn.cluster import KMeans, AgglomerativeClustering
+from sklearn.manifold import TSNE
+import click
+import os
+#+end_src
+
+** Clustering function
+#+begin_src python
+def cluster_verbs(embeddings, verbs, n_clusters=3, method='kmeans'):
+    """Cluster verbs based on their embeddings"""
+    if method == 'kmeans':
+        clustering = KMeans(n_clusters=n_clusters, random_state=42)
+    elif method == 'hierarchical':
+        clustering = AgglomerativeClustering(n_clusters=n_clusters)
+    else:
+        raise ValueError(f"Unknown clustering method: {method}")
+    
+    # Fit clustering
+    cluster_labels = clustering.fit_predict(embeddings)
+    
+    # Group verbs by cluster
+    clusters = {}
+    for i, label in enumerate(cluster_labels):
+        if label not in clusters:
+            clusters[label] = []
+        clusters[label].append(verbs[i])
+    
+    return clusters, cluster_labels
+#+end_src
+
+** Visualization function
+#+begin_src python
+def visualize_clusters(embeddings, verbs, labels, output_file):
+    """Create a t-SNE visualization of clustered verbs"""
+    # Reduce dimensionality for visualization
+    tsne = TSNE(n_components=2, random_state=42, perplexity=min(5, len(embeddings)-1))
+    embeddings_2d = tsne.fit_transform(embeddings)
+    
+    # Plot
+    plt.figure(figsize=(12, 10))
+    
+    # Get unique labels and assign colors
+    unique_labels = set(labels)
+    colors = plt.cm.rainbow(np.linspace(0, 1, len(unique_labels)))
+    
+    # Plot each cluster
+    for label, color in zip(unique_labels, colors):
+        mask = labels == label
+        plt.scatter(
+            embeddings_2d[mask, 0], 
+            embeddings_2d[mask, 1], 
+            c=[color], 
+            label=f'Cluster {label}',
+            s=100
+        )
+    
+    # Add verb labels
+    for i, verb in enumerate(verbs):
+        plt.annotate(
+            verb, 
+            (embeddings_2d[i, 0], embeddings_2d[i, 1]),
+            fontsize=12,
+            ha='center',
+            va='center',
+            bbox=dict(boxstyle='round,pad=0.3', fc='white', alpha=0.7)
+        )
+    
+    plt.title('t-SNE Visualization of French Verb Clusters')
+    plt.legend()
+    plt.grid(True, linestyle='--', alpha=0.7)
+    plt.tight_layout()
+    plt.savefig(output_file)
+    plt.close()
+#+end_src
+
+** Main function
+#+begin_src python
+@click.command()
+@click.option('--embeddings-file', '-e', type=click.Path(exists=True), required=True,
+              help='NumPy file containing verb embeddings')
+@click.option('--verbs-file', '-v', type=click.Path(exists=True), required=True,
+              help='JSON file containing verb list')
+@click.option('--n-clusters', '-n', default=3, type=int,
+              help='Number of clusters to create')
+@click.option('--method', '-m', default='kmeans', type=click.Choice(['kmeans', 'hierarchical']),
+              help='Clustering method to use')
+@click.option('--output', '-o', default='verb_clusters.png',
+              help='Output file for cluster visualization')
+def main(embeddings_file, verbs_file, n_clusters, method, output):
+    """Cluster French verbs based on embedding similarity"""
+    # Load data
+    embeddings = np.load(embeddings_file)
+    with open(verbs_file, 'r') as f:
+        verbs = json.load(f)
+    
+    # Ensure data dimensions match
+    if len(verbs) != len(embeddings):
+        click.echo(f"Error: Number of verbs ({len(verbs)}) does not match number of embeddings ({len(embeddings)})")
+        return
+    
+    # Perform clustering
+    click.echo(f"Clustering {len(verbs)} verbs into {n_clusters} clusters using {method}...")
+    clusters, labels = cluster_verbs(embeddings, verbs, n_clusters, method)
+    
+    # Print clusters
+    for label, cluster_verbs in clusters.items():
+        click.echo(f"Cluster {label}: {', '.join(cluster_verbs)}")
+    
+    # Visualize clusters
+    click.echo(f"Creating cluster visualization and saving to {output}...")
+    visualize_clusters(embeddings, verbs, labels, output)
+    
+    # Save clusters to file
+    base_filename = os.path.splitext(output)[0]
+    clusters_file = f"{base_filename}.json"
+    with open(clusters_file, 'w') as f:
+        json.dump(clusters, f, indent=2)
+    click.echo(f"Cluster assignments saved to {clusters_file}")
+#+end_src
+
+** Script entry point
+#+begin_src python
+if __name__ == "__main__":
+    main()
+#+end_src
+
+* Running the Clustering
+:PROPERTIES:
+:header-args:sh: :dir .
+:END:
+
+** Run clustering on embeddings
+#+begin_src sh :tangle ./cluster-analysis.sh :shebang "#!/bin/sh" :mkdirp yes
+# Check if embedding files exist
+if [ ! -f "french_verb_similarity_embeddings.npy" ] || [ ! -f "french_verb_similarity_verbs.json" ]; then
+    echo "Embedding files not found. Run the embedding analysis first."
+    exit 1
+fi
+
+# Run clustering with different methods and cluster counts
+python verbiste_tools/cluster_verbs.py \
+    -e french_verb_similarity_embeddings.npy \
+    -v french_verb_similarity_verbs.json \
+    -n 3 \
+    -m kmeans \
+    -o french_verb_kmeans_clusters.png
+
+python verbiste_tools/cluster_verbs.py \
+    -e french_verb_similarity_embeddings.npy \
+    -v french_verb_similarity_verbs.json \
+    -n 4 \
+    -m hierarchical \
+    -o french_verb_hierarchical_clusters.png
+
+echo "Clustering complete! Check the output files for results."
+#+end_src
+
+* Conclusion
+This org-mode file provides a comprehensive framework for:
+
+1. Testing Ollama's embedding models with HTTP requests (saved as .http files)
+2. Analyzing semantic similarities between French verbs
+3. Visualizing relationships with similarity matrices and dimensionality reduction
+4. Clustering verbs based on semantic similarities
+
+The file is structured for both interactive exploration and production-ready code generation through tangling.

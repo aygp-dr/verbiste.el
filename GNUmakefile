@@ -6,6 +6,7 @@
 # Variables
 EMACS = emacs
 BATCH = $(EMACS) -Q -batch
+PYTHON = poetry run python3
 ELFILES = verbiste.el ob-verbiste.el
 ELCFILES = $(ELFILES:.el=.elc)
 TESTFILES = verbiste-tests.el
@@ -78,7 +79,7 @@ $(DIST_DIR):
 
 # JSON conversion
 $(DATA_DIR)/%.json: $(VERBISTE_XML_DIR)/%.xml | $(DATA_DIR)
-	./xml2json.py $< $@
+	$(PYTHON) -m verbiste_tools.xml2json $< $@
 
 # Org generation
 $(DATA_DIR)/%.org: $(DATA_DIR)/%.json

@@ -1,174 +1,116 @@
 #!/usr/bin/env python3
-"""
-Verb clustering tool for Verbiste.
-This script analyzes verb conjugation patterns and clusters similar verbs.
-"""
-
-import argparse
-import json
-import os
-import sys
-from typing import Dict, List, Tuple, Set
-
 import numpy as np
-import pandas as pd
-from sklearn.cluster import KMeans, AgglomerativeClustering
-from sklearn.feature_extraction.text import CountVectorizer
-from sklearn.metrics import silhouette_score
-from sklearn.pipeline import Pipeline
-from sklearn.preprocessing import StandardScaler
 import matplotlib.pyplot as plt
+import json
+from sklearn.cluster import KMeans, AgglomerativeClustering
+from sklearn.manifold import TSNE
+import click
+import os
 
-
-def load_data(verbs_file: str, conjugation_file: str) -> Tuple[Dict, Dict]:
-    """Load verb data from JSON files."""
-    with open(verbs_file, 'r', encoding='utf-8') as f:
-        verbs_data = json.load(f)
-    
-    with open(conjugation_file, 'r', encoding='utf-8') as f:
-        conjugation_data = json.load(f)
-    
-    return verbs_data, conjugation_data
-
-
-def extract_patterns(verb: str, template: str, conjugation_data: Dict) -> List[str]:
-    """Extract conjugation patterns for a verb."""
-    patterns = []
-    
-    try:
-        template_data = conjugation_data['templates'].get(template)
-        if not template_data:
-            return patterns
-        
-        # Extract stem from infinitive
-        infinitive_pattern = template_data.get('infinitive', '')
-        if infinitive_pattern.endswith('er'):
-            stem = verb[:-2]  # For -er verbs
-        elif infinitive_pattern.endswith('ir'):
-            stem = verb[:-2]  # For -ir verbs
-        elif infinitive_pattern.endswith('re'):
-            stem = verb[:-2]  # For -re verbs
-        else:
-            stem = verb
-        
-        # Collect conjugation patterns
-        for tense_name, tense_data in template_data.get('tenses', {}).items():
-            for person, pattern in tense_data.items():
-                if pattern:
-                    # Replace stem placeholder with actual stem
-                    actual_form = pattern.replace('#', stem)
-                    patterns.append(f"{verb}:{tense_name}:{person}:{actual_form}")
-        
-        return patterns
-    except Exception as e:
-        print(f"Error extracting patterns for {verb}: {e}", file=sys.stderr)
-        return patterns
-
-
-def create_feature_matrix(verbs_data: Dict, conjugation_data: Dict) -> pd.DataFrame:
-    """Create feature matrix for clustering."""
-    verb_features = {}
-    
-    for verb, info in verbs_data.get('verbs', {}).items():
-        template = info.get('template')
-        if template:
-            patterns = extract_patterns(verb, template, conjugation_data)
-            if patterns:
-                # Join all patterns into a single string for text vectorization
-                verb_features[verb] = ' '.join(patterns)
-    
-    # Convert to DataFrame
-    df = pd.DataFrame.from_dict(verb_features, orient='index', columns=['patterns'])
-    
-    return df
-
-
-def cluster_verbs(df: pd.DataFrame, n_clusters: int = 10, method: str = 'kmeans') -> pd.DataFrame:
-    """Cluster verbs based on conjugation patterns."""
-    # Create a text vectorizer for the patterns
-    vectorizer = CountVectorizer(analyzer='char', ngram_range=(2, 4))
-    
-    # Apply vectorization
-    X = vectorizer.fit_transform(df['patterns'])
-    
-    # Apply clustering
+def cluster_verbs(embeddings, verbs, n_clusters=3, method='kmeans'):
+    """Cluster verbs based on their embeddings"""
     if method == 'kmeans':
-        clusterer = KMeans(n_clusters=n_clusters, random_state=42)
-    else:  # Hierarchical clustering
-        clusterer = AgglomerativeClustering(n_clusters=n_clusters)
-    
-    # Get cluster labels
-    if method == 'kmeans':
-        df['cluster'] = clusterer.fit_predict(X)
+        clustering = KMeans(n_clusters=n_clusters, random_state=42)
+    elif method == 'hierarchical':
+        clustering = AgglomerativeClustering(n_clusters=n_clusters)
     else:
-        df['cluster'] = clusterer.fit_predict(X.toarray())
+        raise ValueError(f"Unknown clustering method: {method}")
     
-    # Get silhouette score
-    if X.shape[0] > n_clusters + 1:  # Need more samples than clusters for silhouette
-        silhouette = silhouette_score(X, df['cluster'])
-        print(f"Silhouette score: {silhouette:.4f}")
+    # Fit clustering
+    cluster_labels = clustering.fit_predict(embeddings)
     
-    return df
+    # Group verbs by cluster
+    clusters = {}
+    for i, label in enumerate(cluster_labels):
+        if label not in clusters:
+            clusters[label] = []
+        clusters[label].append(verbs[i])
+    
+    return clusters, cluster_labels
 
-
-def output_clusters(df: pd.DataFrame, output_dir: str) -> None:
-    """Save clustering results to files."""
-    os.makedirs(output_dir, exist_ok=True)
+def visualize_clusters(embeddings, verbs, labels, output_file):
+    """Create a t-SNE visualization of clustered verbs"""
+    # Reduce dimensionality for visualization
+    tsne = TSNE(n_components=2, random_state=42, perplexity=min(5, len(embeddings)-1))
+    embeddings_2d = tsne.fit_transform(embeddings)
     
-    # Save full results
-    df.to_csv(os.path.join(output_dir, 'verb_clusters.csv'))
+    # Plot
+    plt.figure(figsize=(12, 10))
     
-    # Save individual cluster files
-    for cluster_id in df['cluster'].unique():
-        cluster_verbs = df[df['cluster'] == cluster_id].index.tolist()
-        with open(os.path.join(output_dir, f'cluster_{cluster_id}.txt'), 'w', encoding='utf-8') as f:
-            for verb in sorted(cluster_verbs):
-                f.write(f"{verb}\n")
+    # Get unique labels and assign colors
+    unique_labels = set(labels)
+    colors = plt.cm.rainbow(np.linspace(0, 1, len(unique_labels)))
     
-    # Create a visualization
-    plt.figure(figsize=(12, 8))
-    cluster_sizes = df['cluster'].value_counts().sort_index()
-    cluster_sizes.plot(kind='bar')
-    plt.title('Verb Clusters by Size')
-    plt.xlabel('Cluster ID')
-    plt.ylabel('Number of Verbs')
+    # Plot each cluster
+    for label, color in zip(unique_labels, colors):
+        mask = labels == label
+        plt.scatter(
+            embeddings_2d[mask, 0], 
+            embeddings_2d[mask, 1], 
+            c=[color], 
+            label=f'Cluster {label}',
+            s=100
+        )
+    
+    # Add verb labels
+    for i, verb in enumerate(verbs):
+        plt.annotate(
+            verb, 
+            (embeddings_2d[i, 0], embeddings_2d[i, 1]),
+            fontsize=12,
+            ha='center',
+            va='center',
+            bbox=dict(boxstyle='round,pad=0.3', fc='white', alpha=0.7)
+        )
+    
+    plt.title('t-SNE Visualization of French Verb Clusters')
+    plt.legend()
+    plt.grid(True, linestyle='--', alpha=0.7)
     plt.tight_layout()
-    plt.savefig(os.path.join(output_dir, 'cluster_sizes.png'))
-    print(f"Saved results to {output_dir}")
+    plt.savefig(output_file)
+    plt.close()
 
-
-def main() -> int:
-    """Main entry point."""
-    parser = argparse.ArgumentParser(description='Cluster French verbs based on conjugation patterns')
-    parser.add_argument('--verbs', required=True, help='Path to verbs-fr.json')
-    parser.add_argument('--conjugation', required=True, help='Path to conjugation-fr.json')
-    parser.add_argument('--output', required=True, help='Output directory for results')
-    parser.add_argument('--clusters', type=int, default=10, help='Number of clusters')
-    parser.add_argument('--method', choices=['kmeans', 'hierarchical'], default='kmeans', help='Clustering method')
+@click.command()
+@click.option('--embeddings-file', '-e', type=click.Path(exists=True), required=True,
+              help='NumPy file containing verb embeddings')
+@click.option('--verbs-file', '-v', type=click.Path(exists=True), required=True,
+              help='JSON file containing verb list')
+@click.option('--n-clusters', '-n', default=3, type=int,
+              help='Number of clusters to create')
+@click.option('--method', '-m', default='kmeans', type=click.Choice(['kmeans', 'hierarchical']),
+              help='Clustering method to use')
+@click.option('--output', '-o', default='verb_clusters.png',
+              help='Output file for cluster visualization')
+def main(embeddings_file, verbs_file, n_clusters, method, output):
+    """Cluster French verbs based on embedding similarity"""
+    # Load data
+    embeddings = np.load(embeddings_file)
+    with open(verbs_file, 'r') as f:
+        verbs = json.load(f)
     
-    args = parser.parse_args()
+    # Ensure data dimensions match
+    if len(verbs) != len(embeddings):
+        click.echo(f"Error: Number of verbs ({len(verbs)}) does not match number of embeddings ({len(embeddings)})")
+        return
     
-    try:
-        # Load data
-        verbs_data, conjugation_data = load_data(args.verbs, args.conjugation)
-        
-        # Create feature matrix
-        df = create_feature_matrix(verbs_data, conjugation_data)
-        if df.empty:
-            print("No verb patterns extracted.", file=sys.stderr)
-            return 1
-        
-        # Cluster verbs
-        clustered_df = cluster_verbs(df, args.clusters, args.method)
-        
-        # Output results
-        output_clusters(clustered_df, args.output)
-        
-        return 0
-    except Exception as e:
-        print(f"Error: {e}", file=sys.stderr)
-        return 1
+    # Perform clustering
+    click.echo(f"Clustering {len(verbs)} verbs into {n_clusters} clusters using {method}...")
+    clusters, labels = cluster_verbs(embeddings, verbs, n_clusters, method)
+    
+    # Print clusters
+    for label, cluster_verbs in clusters.items():
+        click.echo(f"Cluster {label}: {', '.join(cluster_verbs)}")
+    
+    # Visualize clusters
+    click.echo(f"Creating cluster visualization and saving to {output}...")
+    visualize_clusters(embeddings, verbs, labels, output)
+    
+    # Save clusters to file
+    base_filename = os.path.splitext(output)[0]
+    clusters_file = f"{base_filename}.json"
+    with open(clusters_file, 'w') as f:
+        json.dump(clusters, f, indent=2)
+    click.echo(f"Cluster assignments saved to {clusters_file}")
 
-
-if __name__ == '__main__':
-    sys.exit(main())
+if __name__ == "__main__":
+    main()

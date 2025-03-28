@@ -1,0 +1,7 @@
+POST http://localhost:11434/api/embeddings
+Content-Type: application/json
+
+{
+  "model": "nomic-embed-text",
+  "prompt": "aller"
+}
