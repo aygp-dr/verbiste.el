@@ -2,7 +2,6 @@
 #+AUTHOR: Aidan Pace
 #+EMAIL: apace@defrecord.com
 
-* Verbiste.el
 
 Emacs interface to the Verbiste French/Italian verb conjugation library.
 
