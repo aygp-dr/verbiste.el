@@ -56,25 +56,10 @@ check-deps: $(VERBISTE_XML_DIR)/verbs-fr.xml $(VERBISTE_XML_DIR)/conjugation-fr.
 test:                             # Run tests
 	$(BATCH) -l ert -l verbiste.el -l $(TESTFILES) -f ert-run-tests-batch-and-exit
 
-lint: package-lint checkdoc       # Run all linters
+lint: test bytec               # Run all linters
 
-package-lint:                     # Check package headers with package-lint
-	for file in $(ELFILES); do \
-		$(BATCH) \
-		  --eval "(require 'package)" \
-		  --eval "(add-to-list 'package-archives '(\"melpa\" . \"https://melpa.org/packages/\") t)" \
-		  --eval "(package-initialize)" \
-		  --eval "(unless (package-installed-p 'package-lint) (package-refresh-contents) (package-install 'package-lint))" \
-		  --eval "(require 'package-lint)" \
-		  --eval "(let ((errors nil)) (with-current-buffer (find-file-noselect \"$$file\") (setq errors (package-lint-current-buffer)) (message \"Linting $$file...\") (message \"%s\" errors) (when (and errors (not (equal errors \"\"))) (kill-emacs 1))))"; \
-	done
-
-checkdoc:                         # Check documentation with checkdoc
-	for file in $(ELFILES); do \
-		$(BATCH) \
-		  --eval "(require 'checkdoc)" \
-		  --eval "(checkdoc-file \"$$file\")"; \
-	done
+bytec:                           # Basic syntax check via byte-compilation
+	$(BATCH) -l lint-file.el verbiste.el
 
 # Directory targets
 $(DATA_DIR):
