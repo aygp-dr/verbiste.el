@@ -1,7 +1,7 @@
 # Verbiste.el - Emacs interface to Verbiste French/Italian verb conjugation
 # GNUmakefile - For use with gmake (GNU Make)
 
-.PHONY: all build compile install test clean check-deps help lint package-lint package checkdoc verbiste-json verbiste-org verbiste-all dist screenshot demo
+.PHONY: all build compile install test clean check-deps help lint package-lint package checkdoc verbiste-json verbiste-org verbiste-all dist screenshot demo copy-xml-files
 
 # Variables
 EMACS = emacs
@@ -24,7 +24,7 @@ DIST_DIR = ./dist
 .DEFAULT_GOAL := help
 
 # Main targets
-all: compile verbiste-json        # Build everything
+all: compile verbiste-xml verbiste-json        # Build everything
 build: compile                    # Alias for compile
 
 compile: $(ELCFILES)              # Compile Emacs Lisp files
@@ -83,8 +83,27 @@ $(DATA_DIR):
 $(DIST_DIR):
 	mkdir -p $@
 
+# Verbiste XML files
+XML_FILES = $(DATA_DIR)/verbs-fr.xml $(DATA_DIR)/conjugation-fr.xml
+
+# Primary method: Try system installation files first
+$(DATA_DIR)/%-fr.xml: $(VERBISTE_XML_DIR)/%-fr.xml | $(DATA_DIR)
+	cp $< $@
+	@echo "Copied $< to $@"
+
+# Fallback method: Use sample files if system files aren't available
+$(DATA_DIR)/verbs-fr.xml: verbs-fr-sample.xml | $(DATA_DIR)
+	cp $< $@
+	@echo "Used sample file $< for $@"
+
+$(DATA_DIR)/conjugation-fr.xml: conjugation-fr-sample.xml | $(DATA_DIR)
+	cp $< $@
+	@echo "Used sample file $< for $@"
+
+verbiste-xml: $(XML_FILES)      # Copy Verbiste XML files locally
+
 # JSON conversion
-$(DATA_DIR)/%.json: $(VERBISTE_XML_DIR)/%.xml | $(DATA_DIR)
+$(DATA_DIR)/%.json: $(DATA_DIR)/%.xml | $(DATA_DIR)
 	$(PYTHON) -m verbiste_tools.xml2json $< $@
 
 # Org generation
@@ -141,9 +160,7 @@ clean-org:                        # Remove org files
 # Screenshots and demo
 screenshot:                       # Generate text-based screenshots of the UI
 	@echo "Generating text-based screenshots of verbiste.el UI..."
-	$(EMACS) --script screenshot.el
-	@echo "Screenshots generated in the screenshots/ directory"
-	@echo "You can view them with 'cat screenshots/*.txt' or see screenshots/README.md"
+	$(CURDIR)/generate-screenshots.sh
 
 demo:                             # Launch Emacs with verbiste enabled for demo
 	$(EMACS) -Q --eval "(progn \

@@ -68,8 +68,11 @@
   :group 'languages
   :prefix "verbiste-")
 
-(defcustom verbiste-data-dir "/usr/local/share/verbiste-0.1"
-  "Directory where Verbiste XML files are located."
+(defcustom verbiste-data-dir 
+  (expand-file-name "data" 
+                   (file-name-directory (or load-file-name buffer-file-name)))
+  "Directory where Verbiste XML files are located.
+Defaults to the 'data' subdirectory in the verbiste.el package directory."
   :type 'directory
   :group 'verbiste)
 
@@ -302,27 +305,59 @@ This is more efficient but requires the XML files to be accessible."
         (fr-deconj (executable-find verbiste-french-deconjugator-path))
         (fr-verbs (file-readable-p (expand-file-name "verbs-fr.xml" verbiste-data-dir)))
         (fr-conj-xml (file-readable-p (expand-file-name "conjugation-fr.xml" verbiste-data-dir)))
-        (clusters (file-readable-p verbiste-clusters-file)))
+        (clusters (file-readable-p verbiste-clusters-file))
+        (use-local-files verbiste-use-xml-directly))
     (with-current-buffer (get-buffer-create "*Verbiste Installation Check*")
       (erase-buffer)
       (insert "Verbiste Installation Check\n\n")
-      (insert (format "French conjugator: %s\n" (if fr-conj "Found" "Not found")))
-      (insert (format "French deconjugator: %s\n" (if fr-deconj "Found" "Not found")))
-      (insert (format "French verbs XML: %s\n" (if fr-verbs "Found" "Not found")))
-      (insert (format "French conjugation XML: %s\n" (if fr-conj-xml "Found" "Not found")))
-      (insert (format "Verb clusters data: %s\n" (if clusters "Found" "Not found")))
-      (insert "\nOverall status: ")
-      (if (and fr-conj fr-deconj fr-verbs fr-conj-xml)
+      
+      ;; Check for command-line tools (only needed if not using XML directly)
+      (unless use-local-files
+        (insert "Command-line tools:\n")
+        (insert (format "  French conjugator: %s\n" (if fr-conj "Found" "Not found")))
+        (insert (format "  French deconjugator: %s\n\n" (if fr-deconj "Found" "Not found"))))
+      
+      ;; Always check for XML files
+      (insert "Data files:\n")
+      (insert (format "  French verbs XML: %s\n" (if fr-verbs "Found" "Not found")))
+      (insert (format "  French conjugation XML: %s\n" (if fr-conj-xml "Found" "Not found")))
+      (insert (format "  Verb clusters data: %s\n\n" (if clusters "Found" "Not found")))
+      
+      ;; Evaluate overall status
+      (insert "Mode configuration:\n")
+      (insert (format "  XML direct parsing: %s\n\n" (if use-local-files "Enabled" "Disabled")))
+      
+      (insert "Overall status: ")
+      (if (or 
+           ;; If using direct XML parsing
+           (and use-local-files fr-verbs fr-conj-xml)
+           ;; If using command-line tools
+           (and (not use-local-files) fr-conj fr-deconj))
           (insert "Ready for use\n")
         (insert "Installation incomplete\n"))
+      
+      ;; Add usage suggestion if XML files are available but tools aren't
+      (when (and (not use-local-files) fr-verbs fr-conj-xml (not (and fr-conj fr-deconj)))
+        (insert "\nSuggestion: Enable direct XML parsing with (setq verbiste-use-xml-directly t)\n"))
+        
       (goto-char (point-min))
       (display-buffer (current-buffer)))))
 
 ;; Initialize the package
 (defun verbiste--init ()
   "Initialize verbiste package."
+  ;; Load verb clusters if available
   (when (file-readable-p verbiste-clusters-file)
-    (verbiste--load-verb-clusters)))
+    (verbiste--load-verb-clusters))
+  
+  ;; If local XML files are available but command-line tools aren't,
+  ;; use direct XML parsing by default
+  (let ((fr-verbs (file-readable-p (expand-file-name "verbs-fr.xml" verbiste-data-dir)))
+        (fr-conj-xml (file-readable-p (expand-file-name "conjugation-fr.xml" verbiste-data-dir)))
+        (fr-conj (executable-find verbiste-french-conjugator-path))
+        (fr-deconj (executable-find verbiste-french-deconjugator-path)))
+    (when (and fr-verbs fr-conj-xml (not (and fr-conj fr-deconj)))
+      (setq verbiste-use-xml-directly t))))
 
 ;; Initialize when loaded
 (eval-after-load 'verbiste '(verbiste--init))
