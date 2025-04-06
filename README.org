@@ -43,6 +43,8 @@ sudo apt-get install elpa-verbiste verbiste
 - ~M-x verbiste-french-deconjugation~: Find the infinitive form of a conjugated French verb
 - ~M-x verbiste-check-installation~: Check if Verbiste is properly installed
 - ~M-x verbiste-mode~: Toggle Verbiste minor mode for verb conjugation
+- ~M-x verbiste-display-similar-verbs~: Display verbs similar to the given verb
+- ~M-x verbiste-browse-random-verbs~: Show a list of random verbs with interactive buttons
 
 *** Keybindings
 
@@ -52,6 +54,8 @@ When ~verbiste-mode~ is enabled:
 |-----------+-------------------------------|
 | C-c v f c | verbiste-french-conjugation   |
 | C-c v f d | verbiste-french-deconjugation |
+| C-c v s   | verbiste-display-similar-verbs |
+| C-c v r   | verbiste-browse-random-verbs  |
 
 *** Planned Features
 

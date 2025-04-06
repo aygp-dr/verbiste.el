@@ -88,7 +88,31 @@
   "Test that keymap bindings are properly set."
   (should (keymapp verbiste-mode-map))
   (should (eq (lookup-key verbiste-mode-map (kbd "C-c v f c")) 'verbiste-french-conjugation))
-  (should (eq (lookup-key verbiste-mode-map (kbd "C-c v f d")) 'verbiste-french-deconjugation)))
+  (should (eq (lookup-key verbiste-mode-map (kbd "C-c v f d")) 'verbiste-french-deconjugation))
+  (should (eq (lookup-key verbiste-mode-map (kbd "C-c v s")) 'verbiste-display-similar-verbs))
+  (should (eq (lookup-key verbiste-mode-map (kbd "C-c v r")) 'verbiste-browse-random-verbs)))
+
+;; Test verb cluster functions
+(ert-deftest verbiste-test-cluster-functions ()
+  "Test the verb cluster functions."
+  (should (fboundp 'verbiste--load-verb-clusters))
+  (should (fboundp 'verbiste--get-similar-verbs))
+  (should (fboundp 'verbiste--get-random-verbs))
+  (should (fboundp 'verbiste-display-similar-verbs))
+  (should (fboundp 'verbiste-browse-random-verbs))
+  
+  ;; Skip tests if the clusters file doesn't exist
+  (skip-unless (file-readable-p verbiste-clusters-file))
+  
+  ;; Test loading clusters
+  (let ((clusters (verbiste--load-verb-clusters)))
+    (should (listp clusters))
+    (should (consp (car clusters))))
+  
+  ;; Test random verb selection
+  (let ((random-verbs (verbiste--get-random-verbs 5)))
+    (should (listp random-verbs))
+    (should (<= (length random-verbs) 5))))
 
 (provide 'verbiste-tests)
 ;;; verbiste-tests.el ends here

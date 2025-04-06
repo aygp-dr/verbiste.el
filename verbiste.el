@@ -32,6 +32,8 @@
 ;;  - Conjugate French verbs in all tenses and moods
 ;;  - Find infinitive forms of conjugated French verbs
 ;;  - Check Verbiste installation status
+;;  - Browse random verbs with interactive UI
+;;  - Explore similar verbs based on embedding clusters
 ;;  - Convenient minor mode with keybindings
 ;;
 ;; Basic usage:
@@ -45,6 +47,8 @@
 ;;   M-x verbiste-french-conjugation
 ;;   M-x verbiste-french-deconjugation
 ;;   M-x verbiste-check-installation
+;;   M-x verbiste-display-similar-verbs
+;;   M-x verbiste-browse-random-verbs
 ;;
 ;; Prerequisites:
 ;;  - The Verbiste package must be installed on your system
@@ -55,6 +59,7 @@
 
 (require 'cl-lib)
 (require 'xml)
+(require 'json)
 
 ;; Customization
 
@@ -97,6 +102,16 @@ This is more efficient but requires the XML files to be accessible."
 
 (defvar verbiste--italian-templates-cache nil
   "Cache of Italian conjugation templates.")
+
+(defvar verbiste--verb-clusters-cache nil
+  "Cache of French verb clusters loaded from JSON.")
+
+(defcustom verbiste-clusters-file
+  (expand-file-name "data/french_verb_clusters.json" 
+                   (file-name-directory (or load-file-name buffer-file-name)))
+  "File containing French verb clusters data."
+  :type 'file
+  :group 'verbiste)
 
 ;; Helper functions
 
@@ -176,6 +191,8 @@ This is more efficient but requires the XML files to be accessible."
   (let ((map (make-sparse-keymap)))
     (define-key map (kbd "C-c v f c") 'verbiste-french-conjugation)
     (define-key map (kbd "C-c v f d") 'verbiste-french-deconjugation)
+    (define-key map (kbd "C-c v s") 'verbiste-display-similar-verbs)
+    (define-key map (kbd "C-c v r") 'verbiste-browse-random-verbs)
     ;; TODO: Add Italian keybindings when implemented
     map)
   "Keymap for Verbiste mode.")
@@ -188,6 +205,94 @@ This is more efficient but requires the XML files to be accessible."
   :keymap verbiste-mode-map
   :global t)
 
+;; Verb clusters
+
+(defun verbiste--load-verb-clusters ()
+  "Load French verb clusters from JSON file."
+  (unless verbiste--verb-clusters-cache
+    (if (file-readable-p verbiste-clusters-file)
+        (with-temp-buffer
+          (insert-file-contents verbiste-clusters-file)
+          (setq verbiste--verb-clusters-cache (json-read)))
+      (message "Cannot read verb clusters file: %s" verbiste-clusters-file)))
+  verbiste--verb-clusters-cache)
+
+(defun verbiste--get-similar-verbs (verb)
+  "Get list of verbs similar to VERB from clusters data."
+  (let ((clusters (verbiste--load-verb-clusters)))
+    (when clusters
+      (let ((similar-verbs (assoc-default verb clusters)))
+        (when similar-verbs
+          (mapcar (lambda (item)
+                    (cons (assoc-default 'verb item)
+                          (assoc-default 'similarity item)))
+                  similar-verbs))))))
+
+(defun verbiste--get-random-verbs (count)
+  "Get COUNT random verbs from the clusters data."
+  (let ((clusters (verbiste--load-verb-clusters)))
+    (when clusters
+      (let ((verb-list (mapcar #'car clusters)))
+        (if (<= (length verb-list) count)
+            verb-list
+          (cl-loop repeat count
+                   for random-index = (random (length verb-list))
+                   for verb = (nth random-index verb-list)
+                   collect verb))))))
+
+(defun verbiste-display-similar-verbs (verb)
+  "Display verbs similar to VERB in a buffer."
+  (interactive "sFrench verb: ")
+  (let ((similar-verbs (verbiste--get-similar-verbs verb)))
+    (if similar-verbs
+        (with-current-buffer (get-buffer-create "*Verbiste Similar Verbs*")
+          (erase-buffer)
+          (insert (format "Verbs similar to '%s':\n\n" verb))
+          (dolist (v similar-verbs)
+            (insert (format "%-20s (similarity: %.4f)\n" (car v) (cdr v))))
+          (goto-char (point-min))
+          (display-buffer (current-buffer)))
+      (message "No similar verbs found for '%s'" verb))))
+
+(defun verbiste-browse-random-verbs ()
+  "Display a buffer with random verbs that can be explored."
+  (interactive)
+  (let ((verbs (verbiste--get-random-verbs 10)))
+    (if verbs
+        (with-current-buffer (get-buffer-create "*Verbiste Random Verbs*")
+          (erase-buffer)
+          (insert "Random French Verbs\n\n")
+          (dolist (verb verbs)
+            (insert (format "- %s\n" verb)))
+          (insert "\nClick on a verb to see similar verbs, or to conjugate it.\n")
+          (goto-char (point-min))
+          
+          ;; Add buttons for each verb
+          (save-excursion
+            (goto-char (point-min))
+            (forward-line 2) ;; Skip header
+            (dolist (verb verbs)
+              (beginning-of-line)
+              (forward-char 2) ;; Skip "- "
+              (let ((start (point)))
+                (forward-word)
+                (make-button start (point)
+                             'action (lambda (_)
+                                       (verbiste-display-similar-verbs verb))
+                             'help-echo "Click to see similar verbs"
+                             'follow-link t))
+              (insert " [conjugate]")
+              (make-button (- (point) 12) (point)
+                           'action (lambda (_)
+                                     (verbiste-french-conjugation verb))
+                           'help-echo "Click to conjugate this verb"
+                           'follow-link t)
+              (forward-line 1)))
+          
+          (special-mode) ;; Make buffer read-only with navigation keys
+          (display-buffer (current-buffer)))
+      (message "No verb clusters data available"))))
+
 ;; Installation check
 
 (defun verbiste-check-installation ()
@@ -196,7 +301,8 @@ This is more efficient but requires the XML files to be accessible."
   (let ((fr-conj (executable-find verbiste-french-conjugator-path))
         (fr-deconj (executable-find verbiste-french-deconjugator-path))
         (fr-verbs (file-readable-p (expand-file-name "verbs-fr.xml" verbiste-data-dir)))
-        (fr-conj-xml (file-readable-p (expand-file-name "conjugation-fr.xml" verbiste-data-dir))))
+        (fr-conj-xml (file-readable-p (expand-file-name "conjugation-fr.xml" verbiste-data-dir)))
+        (clusters (file-readable-p verbiste-clusters-file)))
     (with-current-buffer (get-buffer-create "*Verbiste Installation Check*")
       (erase-buffer)
       (insert "Verbiste Installation Check\n\n")
@@ -204,12 +310,22 @@ This is more efficient but requires the XML files to be accessible."
       (insert (format "French deconjugator: %s\n" (if fr-deconj "Found" "Not found")))
       (insert (format "French verbs XML: %s\n" (if fr-verbs "Found" "Not found")))
       (insert (format "French conjugation XML: %s\n" (if fr-conj-xml "Found" "Not found")))
+      (insert (format "Verb clusters data: %s\n" (if clusters "Found" "Not found")))
       (insert "\nOverall status: ")
       (if (and fr-conj fr-deconj fr-verbs fr-conj-xml)
           (insert "Ready for use\n")
         (insert "Installation incomplete\n"))
       (goto-char (point-min))
       (display-buffer (current-buffer)))))
+
+;; Initialize the package
+(defun verbiste--init ()
+  "Initialize verbiste package."
+  (when (file-readable-p verbiste-clusters-file)
+    (verbiste--load-verb-clusters)))
+
+;; Initialize when loaded
+(eval-after-load 'verbiste '(verbiste--init))
 
 (provide 'verbiste)
 ;;; verbiste.el ends here
