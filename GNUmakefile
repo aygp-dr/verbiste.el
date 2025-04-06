@@ -6,7 +6,7 @@
 # Variables
 EMACS = emacs
 BATCH = $(EMACS) -Q -batch
-PYTHON = poetry run python3
+PYTHON := poetry run python3
 ELFILES = verbiste.el ob-verbiste.el
 ELCFILES = $(ELFILES:.el=.elc)
 TESTFILES = verbiste-tests.el
@@ -57,18 +57,22 @@ test:                             # Run tests
 lint: package-lint checkdoc       # Run all linters
 
 package-lint:                     # Check package headers with package-lint
-	$(BATCH) \
-	  --eval "(require 'package)" \
-	  --eval "(add-to-list 'package-archives '(\"melpa\" . \"https://melpa.org/packages/\") t)" \
-	  --eval "(package-initialize)" \
-	  --eval "(unless (package-installed-p 'package-lint) (package-refresh-contents) (package-install 'package-lint))" \
-	  --eval "(require 'package-lint)" \
-	  --eval "(dolist (file '($(ELFILES))) (package-lint-batch-and-exit file))"
+	for file in $(ELFILES); do \
+		$(BATCH) \
+		  --eval "(require 'package)" \
+		  --eval "(add-to-list 'package-archives '(\"melpa\" . \"https://melpa.org/packages/\") t)" \
+		  --eval "(package-initialize)" \
+		  --eval "(unless (package-installed-p 'package-lint) (package-refresh-contents) (package-install 'package-lint))" \
+		  --eval "(require 'package-lint)" \
+		  --eval "(let ((errors nil)) (with-current-buffer (find-file-noselect \"$$file\") (setq errors (package-lint-current-buffer)) (message \"Linting $$file...\") (message \"%s\" errors) (when (and errors (not (equal errors \"\"))) (kill-emacs 1))))"; \
+	done
 
 checkdoc:                         # Check documentation with checkdoc
-	$(BATCH) \
-	  --eval "(require 'checkdoc)" \
-	  --eval "(dolist (file '($(ELFILES))) (checkdoc-file file))"
+	for file in $(ELFILES); do \
+		$(BATCH) \
+		  --eval "(require 'checkdoc)" \
+		  --eval "(checkdoc-file \"$$file\")"; \
+	done
 
 # Directory targets
 $(DATA_DIR):
@@ -144,10 +148,35 @@ help:                             # Show this help
 	@echo "      compatibility across OSX and Linux than standard make."
 
 
-data/french_verbs_list.txt: verbiste_extract.xsl /usr/local/share/verbiste-0.1/verbs-fr.xml # Show a simple list of all verbs
+VERBISTE_XSL = verbiste_extract.xsl
+
+# Tools directory
+TOOLS_DIR = verbiste_tools
+
+# Data files
+VERBS_LIST = data/french_verbs_list.txt
+VERBS_EMBEDDINGS = data/french_verbs_embeddings.json
+VERB_CLUSTERS = data/french_verb_clusters.json
+
+
+# Extract verb list from Verbiste XML
+$(VERBS_LIST): $(VERBISTE_XSL) $(VERBISTE_XML)
+	@mkdir -p data
 	xml tr $^ > $@
+	@echo "Generated verbs list: $@"
 
-PYTHON := poetry run python3
+# Generate embeddings for all verbs
+$(VERBS_EMBEDDINGS): $(VERBS_LIST)
+	@mkdir -p data
+	$(PYTHON) $(TOOLS_DIR)/generate_verb_embeddings.py $^ $@
+	@echo "Generated verb embeddings: $@"
 
-data/french_verb_clusters.json: generate_verb_clusters.py data/french_verbs_list.txt # Verb -> List[Verb] of similar
-	$(PYTHON) $^ > $@
+# Generate verb clusters based on embedding similarity
+$(VERB_CLUSTERS): $(VERBS_EMBEDDINGS)
+	@mkdir -p data
+	$(PYTHON) $(TOOLS_DIR)/generate_verb_clusters.py $^ $@
+	@echo "Generated verb clusters: $@"
+
+clusters: $(VERB_CLUSTERS)
+
+

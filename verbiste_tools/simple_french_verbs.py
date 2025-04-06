@@ -20,7 +20,5 @@ french_verbs = [
 ]
 
 # Save to file for later use
-with open("french_verbs.json", "w") as f:
+with open("data/simple_french_verbs.json", "w") as f:
     json.dump(french_verbs, f, indent=2)
-
-print(f"Created list of {len(french_verbs)} French verbs and saved to french_verbs.json")

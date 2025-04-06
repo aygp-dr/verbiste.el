@@ -79,7 +79,7 @@ Returns a formatted conjugation table."
     ;; Filter by requested tenses if specified
     (when tenses
       (let ((tense-list (split-string tenses ",")))
-        (setq conjugation-data 
+        (setq conjugation-data
               (verbiste--filter-tenses conjugation-data tense-list))))
     
     ;; Format the results based on the format parameter and requested output
@@ -242,8 +242,8 @@ Returns a formatted conjugation table."
           (push (list begin (string-trim value)) blocks))))
     
     (if blocks
-        (let* ((formatted (mapcar (lambda (b) 
-                                    (format "%d: %s" (car b) (cadr b))) 
+        (let* ((formatted (mapcar (lambda (b)
+                                    (format "%d: %s" (car b) (cadr b)))
                                   (nreverse blocks)))
                (selection (completing-read "Jump to verb: " formatted nil t)))
           (when selection

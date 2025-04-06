@@ -59,5 +59,36 @@
   (should (fboundp 'verbiste-mode))
   (should (keymapp verbiste-mode-map)))
 
+;; Test main French functions
+(ert-deftest verbiste-test-french-functions ()
+  "Test that French functions are properly defined."
+  (should (fboundp 'verbiste-french-conjugation))
+  (should (commandp 'verbiste-french-conjugation))
+  (should (fboundp 'verbiste-french-deconjugation))
+  (should (commandp 'verbiste-french-deconjugation)))
+
+;; Test French verbs loading function
+(ert-deftest verbiste-test-load-french-verbs ()
+  "Test loading French verbs function."
+  (skip-unless (and (file-readable-p (expand-file-name "verbs-fr-sample.xml" 
+                                                     default-directory))))
+  (let ((verbiste-data-dir default-directory))
+    (should (fboundp 'verbiste--load-french-verbs))
+    (when (file-readable-p (expand-file-name "verbs-fr.xml" verbiste-data-dir))
+      (should (listp (verbiste--load-french-verbs))))))
+
+;; Test installation check function
+(ert-deftest verbiste-test-installation-check ()
+  "Test installation check function."
+  (should (fboundp 'verbiste-check-installation))
+  (should (commandp 'verbiste-check-installation)))
+
+;; Test keymap bindings
+(ert-deftest verbiste-test-keymap-bindings ()
+  "Test that keymap bindings are properly set."
+  (should (keymapp verbiste-mode-map))
+  (should (eq (lookup-key verbiste-mode-map (kbd "C-c v f c")) 'verbiste-french-conjugation))
+  (should (eq (lookup-key verbiste-mode-map (kbd "C-c v f d")) 'verbiste-french-deconjugation)))
+
 (provide 'verbiste-tests)
 ;;; verbiste-tests.el ends here

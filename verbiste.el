@@ -26,7 +26,30 @@
 ;;; Commentary:
 
 ;; This package provides an Emacs interface to the Verbiste
-;; French and Italian verb conjugation library.
+;; French verb conjugation library, with Italian support planned for future releases.
+;;
+;; Features:
+;;  - Conjugate French verbs in all tenses and moods
+;;  - Find infinitive forms of conjugated French verbs
+;;  - Check Verbiste installation status
+;;  - Convenient minor mode with keybindings
+;;
+;; Basic usage:
+;;
+;;   (require 'verbiste)
+;;
+;;   ;; Optional: enable the minor mode globally
+;;   (verbiste-mode 1)
+;;
+;;   ;; Commands
+;;   M-x verbiste-french-conjugation
+;;   M-x verbiste-french-deconjugation
+;;   M-x verbiste-check-installation
+;;
+;; Prerequisites:
+;;  - The Verbiste package must be installed on your system
+;;  - French conjugator and deconjugator executables must be available
+;;  - XML data files should be accessible at the configured location
 
 ;;; Code:
 

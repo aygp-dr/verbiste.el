@@ -40,18 +40,25 @@ sudo apt-get install elpa-verbiste verbiste
 *** Basic Commands
 
 - ~M-x verbiste-french-conjugation~: Conjugate a French verb
-- ~M-x verbiste-italian-conjugation~: Conjugate an Italian verb
 - ~M-x verbiste-french-deconjugation~: Find the infinitive form of a conjugated French verb
-- ~M-x verbiste-italian-deconjugation~: Find the infinitive form of a conjugated Italian verb
+- ~M-x verbiste-check-installation~: Check if Verbiste is properly installed
+- ~M-x verbiste-mode~: Toggle Verbiste minor mode for verb conjugation
 
 *** Keybindings
+
+When ~verbiste-mode~ is enabled:
 
 | Key       | Function                      |
 |-----------+-------------------------------|
 | C-c v f c | verbiste-french-conjugation   |
 | C-c v f d | verbiste-french-deconjugation |
-| C-c v i c | verbiste-italian-conjugation  |
-| C-c v i d | verbiste-italian-deconjugation |
+
+*** Planned Features
+
+Italian verb conjugation support is currently in development. The following commands will be available in future releases:
+
+- ~M-x verbiste-italian-conjugation~: Conjugate an Italian verb
+- ~M-x verbiste-italian-deconjugation~: Find the infinitive form of a conjugated Italian verb
 
 ** Implementation Notes
 
