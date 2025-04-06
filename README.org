@@ -19,6 +19,14 @@ This package provides a convenient interface to the Verbiste library for French 
 - Convenient minor mode with keybindings
 - Support for direct XML parsing (optional, for better performance)
 
+** Screenshots
+
+*** Browse Random Verbs
+[[file:screenshots/sh-verbiste-random.png]]
+
+*** Verb Conjugation
+[[file:screenshots/sh-verbiste-parler.png]]
+
 ** Installation
 
 *** Prerequisites
