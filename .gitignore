@@ -31,3 +31,4 @@ data/*.org
 
 # Misc
 .DS_Store
+.env

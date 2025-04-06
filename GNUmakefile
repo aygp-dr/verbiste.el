@@ -15,6 +15,8 @@ PKG_NAME = verbiste-$(PKG_VERSION)
 
 # Directory definitions
 VERBISTE_XML_DIR = /usr/local/share/verbiste-0.1
+VERBISTE_XML = $(VERBISTE_XML_DIR)/verbs-fr.xml
+
 DATA_DIR = ./data
 DIST_DIR = ./dist
 
@@ -35,7 +37,7 @@ install:                          # Show installation instructions
 	@echo "(add-to-list 'load-path \"$(CURDIR)\")"
 	@echo "(require 'verbiste)"
 
-$(VERBISTE_XML_DIR)/verbs-fr.xml:
+$(VERBISTE_XML):
 	@echo "ERROR: verbs-fr.xml not found at $(VERBISTE_XML_DIR)"
 	@echo "Install Verbiste or set VERBISTE_XML_DIR to correct location"
 	@false
@@ -170,6 +172,8 @@ $(VERBS_EMBEDDINGS): $(VERBS_LIST)
 	@mkdir -p data
 	$(PYTHON) $(TOOLS_DIR)/generate_verb_embeddings.py $^ $@
 	@echo "Generated verb embeddings: $@"
+
+embeddings: $(VERBS_EMBEDDINGS)
 
 # Generate verb clusters based on embedding similarity
 $(VERB_CLUSTERS): $(VERBS_EMBEDDINGS)
