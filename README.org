@@ -3,11 +3,21 @@
 #+EMAIL: apace@defrecord.com
 
 
-Emacs interface to the Verbiste French/Italian verb conjugation library.
+Emacs interface to the Verbiste French verb conjugation library.
 
 ** Overview
 
-This package provides a convenient interface to the verbiste library for French and Italian verb conjugation directly within Emacs. It allows users to conjugate verbs in all tenses and moods, right from their editor.
+This package provides a convenient interface to the Verbiste library for French verb conjugation directly within Emacs. It allows users to conjugate verbs in all tenses and moods, right from their editor. Italian support is planned for future releases.
+
+** Features
+
+- Conjugate French verbs in all tenses and moods
+- Find infinitive forms of conjugated French verbs
+- Check installation status to ensure proper setup
+- Browse random verbs with interactive UI
+- Explore similar verbs based on embedding clusters
+- Convenient minor mode with keybindings
+- Support for direct XML parsing (optional, for better performance)
 
 ** Installation
 
@@ -91,14 +101,37 @@ Common French verbs for testing:
 - manger (to eat)
 - finir (to finish)
 
-** Development Plan
+** Development
 
-1. Implement command-line interface to verbiste
-2. Create display buffer for conjugation results
-3. Add direct XML parsing for better performance
-4. Implement completion for verb input
-5. Add support for theme-aware display
-6. Implement mode-line indicators for verbs under point
+*** For Emacs Lisp Code
+#+begin_src bash
+# Compile elisp files
+gmake compile
+
+# Run tests
+gmake test
+
+# Lint code
+gmake lint
+
+# Create distribution package
+gmake dist
+#+end_src
+
+*** For Supporting Python Tools
+#+begin_src bash
+# Install with Poetry
+poetry install
+
+# Format Python code
+poetry run black verbiste_tools
+#+end_src
+
+*** Future Plans
+1. Implement completion for verb input
+2. Add support for theme-aware display
+3. Implement mode-line indicators for verbs under point
+4. Add Italian verb support
 
 ** Resources
 
