@@ -142,32 +142,122 @@ This is more efficient but requires the XML files to be accessible."
 ;; Main Functions for Command-line Interface
 
 (defun verbiste-french-conjugation (verb)
-  "Conjugate the French VERB."
+  "Conjugate the French VERB and show results with navigation buttons."
   (interactive "sFrench verb: ")
-  (if (not (verbiste--ensure-executable verbiste-french-conjugator-path))
-      (message "French conjugator not found")
-    (let ((output (verbiste--shell-command-to-string
-                   (format "%s %s" verbiste-french-conjugator-path (shell-quote-argument verb)))))
-      (with-current-buffer (get-buffer-create "*Verbiste French Conjugation*")
-        (erase-buffer)
-        (insert (format "Conjugation of French verb: %s\n\n" verb))
-        (insert output)
-        (goto-char (point-min))
-        (display-buffer (current-buffer))))))
+  (if (not (and (not verbiste-use-xml-directly)
+                (not (verbiste--ensure-executable verbiste-french-conjugator-path))))
+      (let ((output (if verbiste-use-xml-directly
+                      (verbiste--get-conjugation-from-xml verb)
+                    (verbiste--shell-command-to-string
+                     (format "%s %s" verbiste-french-conjugator-path (shell-quote-argument verb))))))
+        (with-current-buffer (get-buffer-create "*Verbiste French Conjugation*")
+          (erase-buffer)
+          (insert (format "Conjugation of French verb: %s\n\n" verb))
+          (insert output)
+          
+          ;; Add navigation buttons
+          (goto-char (point-min))
+          (end-of-line)
+          (insert " ")
+          (insert "[similar verbs]")
+          (make-button (- (point) 15) (point)
+                       'action (lambda (_)
+                                 (verbiste-display-similar-verbs verb))
+                       'help-echo "View similar verbs"
+                       'follow-link t)
+          
+          (insert " [random verbs]")
+          (make-button (- (point) 14) (point)
+                       'action (lambda (_)
+                                 (verbiste-browse-random-verbs))
+                       'help-echo "Browse random verbs"
+                       'follow-link t)
+          
+          (goto-char (point-min))
+          ;; Make buffer read-only but allow button clicks
+          (special-mode)
+          (display-buffer (current-buffer))))
+    (message "French conjugator not found, enable direct XML parsing with verbiste-use-xml-directly")))
+
+;; Function to get conjugation from XML when command-line tools are not available
+(defun verbiste--get-conjugation-from-xml (verb)
+  "Get conjugation of VERB directly from XML files.
+Returns a formatted string with the conjugation tables."
+  ;; This is a placeholder - in a real implementation, we would:
+  ;; 1. Load and parse the XML files
+  ;; 2. Find the verb's template
+  ;; 3. Format the conjugation in a readable way
+  
+  ;; For now, we'll just return a simple message
+  (format "Direct XML parsing not fully implemented yet.\nUse command-line tools for complete conjugation tables.\n\nVerb: %s\nLanguage: French" verb))
 
 (defun verbiste-french-deconjugation (verb)
-  "Find infinitive form of conjugated French VERB."
+  "Find infinitive form of conjugated French VERB.
+Adds interactive navigation buttons for the result."
   (interactive "sConjugated French verb: ")
-  (if (not (verbiste--ensure-executable verbiste-french-deconjugator-path))
-      (message "French deconjugator not found")
-    (let ((output (verbiste--shell-command-to-string
-                   (format "%s %s" verbiste-french-deconjugator-path (shell-quote-argument verb)))))
+  (if (not (and (not verbiste-use-xml-directly)
+                (not (verbiste--ensure-executable verbiste-french-deconjugator-path))))
+    (let ((output (if verbiste-use-xml-directly
+                      (verbiste--get-deconjugation-from-xml verb)
+                    (verbiste--shell-command-to-string
+                     (format "%s %s" verbiste-french-deconjugator-path (shell-quote-argument verb))))))
       (with-current-buffer (get-buffer-create "*Verbiste French Deconjugation*")
         (erase-buffer)
         (insert (format "Deconjugation of French verb: %s\n\n" verb))
         (insert output)
+        
+        ;; Try to extract the infinitive(s) from the output
         (goto-char (point-min))
-        (display-buffer (current-buffer))))))
+        (let ((infinitives nil))
+          (while (re-search-forward "infinitive: \\(.*\\)$" nil t)
+            (push (match-string 1) infinitives))
+          
+          ;; Add navigation buttons for each found infinitive
+          (when infinitives
+            (goto-char (point-max))
+            (insert "\n\nActions:\n")
+            (dolist (inf infinitives)
+              (insert (format "- %s: " inf))
+              (insert "[conjugate]")
+              (make-button (- (point) 11) (point)
+                           'action (lambda (_)
+                                     (verbiste-french-conjugation inf))
+                           'help-echo "Conjugate this verb"
+                           'follow-link t)
+              
+              (insert " [similar verbs]")
+              (make-button (- (point) 15) (point)
+                           'action (lambda (_)
+                                     (verbiste-display-similar-verbs inf))
+                           'help-echo "View similar verbs"
+                           'follow-link t)
+              (insert "\n"))))
+        
+        ;; Add random verbs button
+        (goto-char (point-max))
+        (insert "\n[Browse random verbs]")
+        (make-button (- (point) 19) (point)
+                     'action (lambda (_)
+                               (verbiste-browse-random-verbs))
+                     'help-echo "Browse random verbs"
+                     'follow-link t)
+        
+        (goto-char (point-min))
+        (special-mode) ;; Make buffer read-only with navigation keys
+        (display-buffer (current-buffer))))
+    (message "French deconjugator not found, enable direct XML parsing with verbiste-use-xml-directly")))
+
+;; Function to get deconjugation from XML when command-line tools are not available
+(defun verbiste--get-deconjugation-from-xml (verb)
+  "Get possible infinitive forms of VERB directly from XML files.
+Returns a formatted string with the deconjugation results."
+  ;; This is a placeholder - in a real implementation, we would:
+  ;; 1. Load and parse the XML files
+  ;; 2. Search through all possible conjugations to find matches
+  ;; 3. Return the infinitive forms
+  
+  ;; For now, we'll just return a simple message
+  (format "Direct XML parsing not fully implemented yet.\nUse command-line tools for complete deconjugation.\n\nConjugated verb: %s\nLanguage: French" verb))
 
 ;; TODO: Add Italian verb functions when they become available
 
@@ -243,55 +333,108 @@ This is more efficient but requires the XML files to be accessible."
                    collect verb))))))
 
 (defun verbiste-display-similar-verbs (verb)
-  "Display verbs similar to VERB in a buffer."
+  "Display verbs similar to VERB in a buffer.
+Allows clicking on verbs to navigate the similarity graph."
   (interactive "sFrench verb: ")
   (let ((similar-verbs (verbiste--get-similar-verbs verb)))
     (if similar-verbs
         (with-current-buffer (get-buffer-create "*Verbiste Similar Verbs*")
           (erase-buffer)
           (insert (format "Verbs similar to '%s':\n\n" verb))
+          
+          ;; Add [conjugate] button for the main verb
+          (insert "[conjugate]")
+          (make-button (- (point) 11) (point)
+                       'action (lambda (_)
+                                 (verbiste-french-conjugation verb))
+                       'help-echo "Click to conjugate this verb"
+                       'follow-link t)
+          (insert "\n\n")
+          
+          ;; Add clickable similar verbs with conjugation buttons
           (dolist (v similar-verbs)
-            (insert (format "%-20s (similarity: %.4f)\n" (car v) (cdr v))))
+            (let ((sim-verb (car v))
+                  (sim-score (cdr v)))
+              ;; Make the verb itself clickable
+              (let ((start (point)))
+                (insert (format "%-20s" sim-verb))
+                (make-button start (- (point) (- 20 (length sim-verb)))
+                             'action (lambda (_)
+                                       (verbiste-display-similar-verbs sim-verb))
+                             'help-echo "Click to see similar verbs"
+                             'follow-link t))
+              
+              ;; Add similarity score
+              (insert (format "(similarity: %.4f) " sim-score))
+              
+              ;; Add conjugation button
+              (insert "[conjugate]")
+              (make-button (- (point) 11) (point)
+                           'action (lambda (_)
+                                     (verbiste-french-conjugation sim-verb))
+                           'help-echo "Click to conjugate this verb"
+                           'follow-link t)
+              (insert "\n")))
+          
+          ;; Add back link to browse random verbs
+          (insert "\n[Browse random verbs]")
+          (make-button (- (point) 19) (point)
+                       'action (lambda (_)
+                                 (verbiste-browse-random-verbs))
+                       'help-echo "Click to browse random verbs"
+                       'follow-link t)
+          
           (goto-char (point-min))
+          (special-mode) ;; Make buffer read-only with navigation keys
           (display-buffer (current-buffer)))
       (message "No similar verbs found for '%s'" verb))))
 
 (defun verbiste-browse-random-verbs ()
-  "Display a buffer with random verbs that can be explored."
+  "Display a buffer with random verbs that can be explored interactively.
+Clicking on verbs navigates to the similar verbs view, allowing for
+graph-like exploration of verb relationships."
   (interactive)
   (let ((verbs (verbiste--get-random-verbs 10)))
     (if verbs
         (with-current-buffer (get-buffer-create "*Verbiste Random Verbs*")
           (erase-buffer)
           (insert "Random French Verbs\n\n")
-          (dolist (verb verbs)
-            (insert (format "- %s\n" verb)))
-          (insert "\nClick on a verb to see similar verbs, or to conjugate it.\n")
-          (goto-char (point-min))
+          (insert "Click on a verb to see similar verbs and navigate the similarity graph.\n")
+          (insert "Press TAB to navigate between buttons, ENTER to activate them.\n\n")
           
           ;; Add buttons for each verb
-          (save-excursion
-            (goto-char (point-min))
-            (forward-line 2) ;; Skip header
-            (dolist (verb verbs)
-              (beginning-of-line)
-              (forward-char 2) ;; Skip "- "
-              (let ((start (point)))
-                (forward-word)
-                (make-button start (point)
-                             'action (lambda (_)
-                                       (verbiste-display-similar-verbs verb))
-                             'help-echo "Click to see similar verbs"
-                             'follow-link t))
-              (insert " [conjugate]")
-              (make-button (- (point) 12) (point)
+          (dolist (verb verbs)
+            (insert "- ")
+            ;; Make the verb itself clickable
+            (let ((start (point)))
+              (insert verb)
+              (make-button start (point)
                            'action (lambda (_)
-                                     (verbiste-french-conjugation verb))
-                           'help-echo "Click to conjugate this verb"
-                           'follow-link t)
-              (forward-line 1)))
+                                     (verbiste-display-similar-verbs verb))
+                           'help-echo "Click to see similar verbs"
+                           'follow-link t))
+            
+            ;; Add conjugation button
+            (insert " [conjugate]")
+            (make-button (- (point) 11) (point)
+                         'action (lambda (_)
+                                   (verbiste-french-conjugation verb))
+                         'help-echo "Click to conjugate this verb"
+                         'follow-link t)
+            (insert "\n"))
           
+          ;; Add refresh button
+          (insert "\n[Refresh with new random verbs]")
+          (make-button (- (point) 28) (point)
+                       'action (lambda (_)
+                                 (verbiste-browse-random-verbs))
+                       'help-echo "Click to get new random verbs"
+                       'follow-link t)
+          
+          (goto-char (point-min))
           (special-mode) ;; Make buffer read-only with navigation keys
+          (local-set-key (kbd "<tab>") 'forward-button)
+          (local-set-key (kbd "<backtab>") 'backward-button)
           (display-buffer (current-buffer)))
       (message "No verb clusters data available"))))
 

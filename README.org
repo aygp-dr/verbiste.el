@@ -14,8 +14,9 @@ This package provides a convenient interface to the Verbiste library for French 
 - Conjugate French verbs in all tenses and moods
 - Find infinitive forms of conjugated French verbs
 - Check installation status to ensure proper setup
-- Browse random verbs with interactive UI
-- Explore similar verbs based on embedding clusters
+- Navigate verb relationships in a graph-like interface
+- Browse random verbs and explore similar verbs interactively
+- Click through related verbs to discover connections and patterns
 - Convenient minor mode with keybindings
 - Support for direct XML parsing (optional, for better performance)
 
