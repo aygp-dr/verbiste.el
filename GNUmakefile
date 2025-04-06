@@ -1,7 +1,7 @@
 # Verbiste.el - Emacs interface to Verbiste French/Italian verb conjugation
 # GNUmakefile - For use with gmake (GNU Make)
 
-.PHONY: all build compile install test clean check-deps help lint package-lint package checkdoc verbiste-json verbiste-org verbiste-all dist
+.PHONY: all build compile install test clean check-deps help lint package-lint package checkdoc verbiste-json verbiste-org verbiste-all dist screenshot demo
 
 # Variables
 EMACS = emacs
@@ -137,6 +137,20 @@ clean-json:                       # Remove JSON files
 
 clean-org:                        # Remove org files
 	rm -f $(DATA_DIR)/*.org
+
+# Screenshots and demo
+screenshot:                       # Generate text-based screenshots of the UI
+	@echo "Generating text-based screenshots of verbiste.el UI..."
+	$(EMACS) --script screenshot.el
+	@echo "Screenshots generated in the screenshots/ directory"
+	@echo "You can view them with 'cat screenshots/*.txt' or see screenshots/README.md"
+
+demo:                             # Launch Emacs with verbiste enabled for demo
+	$(EMACS) -Q --eval "(progn \
+		(add-to-list 'load-path \"$(CURDIR)\") \
+		(require 'verbiste) \
+		(verbiste-mode 1) \
+		(message \"Welcome to verbiste.el demo! Try M-x verbiste-browse-random-verbs\"))"
 
 # Help function
 help:                             # Show this help

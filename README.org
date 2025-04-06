@@ -116,6 +116,12 @@ gmake lint
 
 # Create distribution package
 gmake dist
+
+# Generate text-based UI screenshots
+gmake screenshot
+
+# Launch a demo with verbiste loaded
+gmake demo
 #+end_src
 
 *** For Supporting Python Tools
