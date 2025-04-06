@@ -24,7 +24,7 @@ DIST_DIR = ./dist
 .DEFAULT_GOAL := help
 
 # Main targets
-all: compile verbiste-xml verbiste-json        # Build everything
+all: compile verbiste-xml verbiste-json verbiste-data  # Build everything
 build: compile                    # Alias for compile
 
 compile: $(ELCFILES)              # Compile Emacs Lisp files
@@ -135,7 +135,9 @@ ORG_FILES = $(DATA_DIR)/verbs-fr.org $(DATA_DIR)/conjugation-fr.org \
 
 verbiste-json: $(JSON_FILES)      # Convert all XML to JSON
 verbiste-org: $(ORG_FILES)        # Generate all org docs
-verbiste-all: verbiste-json verbiste-org # Run both conversions
+verbiste-data: $(DATA_DIR)/french_verb_clusters.json # Ensure verb clusters data is available
+
+verbiste-all: verbiste-xml verbiste-json verbiste-org verbiste-data # Run all conversions
 
 package: $(ELFILES) $(TESTFILES)   # Create package suitable for submission to MELPA
 	@echo "Package files verified for MELPA submission"

@@ -72,7 +72,7 @@
   (expand-file-name "data" 
                    (file-name-directory (or load-file-name buffer-file-name)))
   "Directory where Verbiste XML files are located.
-Defaults to the 'data' subdirectory in the verbiste.el package directory."
+Defaults to the `data' subdirectory in the verbiste.el package directory."
   :type 'directory
   :group 'verbiste)
 
@@ -110,8 +110,7 @@ This is more efficient but requires the XML files to be accessible."
   "Cache of French verb clusters loaded from JSON.")
 
 (defcustom verbiste-clusters-file
-  (expand-file-name "data/french_verb_clusters.json" 
-                   (file-name-directory (or load-file-name buffer-file-name)))
+  (expand-file-name "french_verb_clusters.json" verbiste-data-dir)
   "File containing French verb clusters data."
   :type 'file
   :group 'verbiste)
