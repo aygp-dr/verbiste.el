@@ -1,0 +1,68 @@
+<?xml version="1.0"?>
+
+<!-- 
+    Sample extract from conjugation-fr.xml
+    This is a small subset of the full conjugation templates
+-->
+
+<conjugation>
+  <template name=":parl:er">
+    <infinitive>
+      <p><i>parl</i>er</p>
+    </infinitive>
+    <present>
+      <p><i>parl</i>e</p>
+      <p><i>parl</i>es</p>
+      <p><i>parl</i>e</p>
+      <p><i>parl</i>ons</p>
+      <p><i>parl</i>ez</p>
+      <p><i>parl</i>ent</p>
+    </present>
+    <imperfect>
+      <p><i>parl</i>ais</p>
+      <p><i>parl</i>ais</p>
+      <p><i>parl</i>ait</p>
+      <p><i>parl</i>ions</p>
+      <p><i>parl</i>iez</p>
+      <p><i>parl</i>aient</p>
+    </imperfect>
+    <future>
+      <p><i>parl</i>erai</p>
+      <p><i>parl</i>eras</p>
+      <p><i>parl</i>era</p>
+      <p><i>parl</i>erons</p>
+      <p><i>parl</i>erez</p>
+      <p><i>parl</i>eront</p>
+    </future>
+  </template>
+  
+  <template name=":fin:ir">
+    <infinitive>
+      <p><i>fin</i>ir</p>
+    </infinitive>
+    <present>
+      <p><i>fin</i>is</p>
+      <p><i>fin</i>is</p>
+      <p><i>fin</i>it</p>
+      <p><i>fin</i>issons</p>
+      <p><i>fin</i>issez</p>
+      <p><i>fin</i>issent</p>
+    </present>
+    <imperfect>
+      <p><i>fin</i>issais</p>
+      <p><i>fin</i>issais</p>
+      <p><i>fin</i>issait</p>
+      <p><i>fin</i>issions</p>
+      <p><i>fin</i>issiez</p>
+      <p><i>fin</i>issaient</p>
+    </imperfect>
+    <future>
+      <p><i>fin</i>irai</p>
+      <p><i>fin</i>iras</p>
+      <p><i>fin</i>ira</p>
+      <p><i>fin</i>irons</p>
+      <p><i>fin</i>irez</p>
+      <p><i>fin</i>iront</p>
+    </future>
+  </template>
+</conjugation>
