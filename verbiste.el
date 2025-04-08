@@ -69,10 +69,23 @@
   :prefix "verbiste-")
 
 (defcustom verbiste-data-dir 
-  (expand-file-name "data" 
-                   (file-name-directory (or load-file-name buffer-file-name)))
+  (or
+   ;; First try: data/ in the package directory
+   (let ((pkg-dir (and load-file-name (file-name-directory load-file-name))))
+     (when pkg-dir
+       (let ((data-dir (expand-file-name "data" pkg-dir)))
+         (when (file-directory-p data-dir)
+           data-dir))))
+   
+   ;; Second try: data/ in current directory
+   (let ((data-dir (expand-file-name "data" default-directory)))
+     (when (file-directory-p data-dir)
+       data-dir))
+   
+   ;; Last resort: Use the system verbiste directory
+   "/usr/local/share/verbiste-0.1")
   "Directory where Verbiste XML files are located.
-Defaults to the `data' subdirectory in the verbiste.el package directory."
+Automatically detects the location of data files, with fallbacks."
   :type 'directory
   :group 'verbiste)
 
@@ -110,7 +123,19 @@ This is more efficient but requires the XML files to be accessible."
   "Cache of French verb clusters loaded from JSON.")
 
 (defcustom verbiste-clusters-file
-  (expand-file-name "french_verb_clusters.json" verbiste-data-dir)
+  (or
+   ;; Try in verbiste-data-dir
+   (let ((clusters-path (expand-file-name "french_verb_clusters.json" verbiste-data-dir)))
+     (when (file-exists-p clusters-path)
+       clusters-path))
+   
+   ;; Try in current directory
+   (let ((local-path (expand-file-name "french_verb_clusters.json" default-directory)))
+     (when (file-exists-p local-path)
+       local-path))
+   
+   ;; Default fallback (will be used if file doesn't exist)
+   (expand-file-name "french_verb_clusters.json" verbiste-data-dir))
   "File containing French verb clusters data."
   :type 'file
   :group 'verbiste)
@@ -131,13 +156,26 @@ This is more efficient but requires the XML files to be accessible."
     (buffer-string)))
 
 (defun verbiste--load-xml-file (filename)
-  "Load XML from FILENAME."
-  (let ((file (expand-file-name filename verbiste-data-dir)))
-    (if (file-readable-p file)
+  "Load XML from FILENAME.
+Tries to find the file in verbiste-data-dir, current directory, 
+or predefined sample files."
+  (let* ((file-in-data-dir (expand-file-name filename verbiste-data-dir))
+         (file-in-current-dir (expand-file-name filename default-directory))
+         (sample-file (expand-file-name 
+                      (concat (file-name-sans-extension filename) "-sample.xml")
+                      default-directory))
+         (file (cond
+                ((file-readable-p file-in-data-dir) file-in-data-dir)
+                ((file-readable-p file-in-current-dir) file-in-current-dir)
+                ((file-readable-p sample-file) sample-file)
+                (t nil))))
+    (if file
         (with-temp-buffer
           (insert-file-contents file)
+          (message "Loaded XML file: %s" file)
           (xml-parse-region (point-min) (point-max)))
-      (error "Cannot read file: %s" file))))
+      (error "Cannot find readable XML file: %s (tried %s, %s, and %s)"
+             filename file-in-data-dir file-in-current-dir sample-file))))
 
 ;; Main Functions for Command-line Interface
 
@@ -303,9 +341,20 @@ Returns a formatted string with the deconjugation results."
   "Load French verb clusters from JSON file."
   (unless verbiste--verb-clusters-cache
     (if (file-readable-p verbiste-clusters-file)
-        (with-temp-buffer
-          (insert-file-contents verbiste-clusters-file)
-          (setq verbiste--verb-clusters-cache (json-read)))
+        (progn
+          (message "Loading clusters from %s..." verbiste-clusters-file)
+          (condition-case err
+              (with-temp-buffer
+                (insert-file-contents verbiste-clusters-file)
+                (message "File loaded, parsing JSON...")
+                (let ((json-object-type 'alist)
+                      (json-array-type 'list))
+                  (setq verbiste--verb-clusters-cache (json-read))
+                  (message "JSON parsed successfully. Found %d verb entries."
+                           (length verbiste--verb-clusters-cache))))
+            (error 
+             (message "Error parsing clusters file: %s" (error-message-string err))
+             nil)))
       (message "Cannot read verb clusters file: %s" verbiste-clusters-file)))
   verbiste--verb-clusters-cache)
 
@@ -443,15 +492,25 @@ graph-like exploration of verb relationships."
 (defun verbiste-check-installation ()
   "Check if verbiste is properly installed."
   (interactive)
-  (let ((fr-conj (executable-find verbiste-french-conjugator-path))
-        (fr-deconj (executable-find verbiste-french-deconjugator-path))
-        (fr-verbs (file-readable-p (expand-file-name "verbs-fr.xml" verbiste-data-dir)))
-        (fr-conj-xml (file-readable-p (expand-file-name "conjugation-fr.xml" verbiste-data-dir)))
-        (clusters (file-readable-p verbiste-clusters-file))
-        (use-local-files verbiste-use-xml-directly))
+  (let* ((fr-conj (executable-find verbiste-french-conjugator-path))
+         (fr-deconj (executable-find verbiste-french-deconjugator-path))
+         (fr-verbs-path (expand-file-name "verbs-fr.xml" verbiste-data-dir))
+         (fr-conj-path (expand-file-name "conjugation-fr.xml" verbiste-data-dir))
+         (fr-verbs (file-readable-p fr-verbs-path))
+         (fr-conj-xml (file-readable-p fr-conj-path))
+         (clusters-path verbiste-clusters-file)
+         (clusters (file-readable-p clusters-path))
+         (use-local-files verbiste-use-xml-directly))
     (with-current-buffer (get-buffer-create "*Verbiste Installation Check*")
       (erase-buffer)
       (insert "Verbiste Installation Check\n\n")
+      
+      ;; Directory information
+      (insert "Directory Information:\n")
+      (insert (format "  verbiste-data-dir: %s\n" verbiste-data-dir))
+      (insert (format "  Current directory: %s\n" default-directory))
+      (insert (format "  Package directory: %s\n\n" 
+                     (or (and load-file-name (file-name-directory load-file-name)) "unknown")))
       
       ;; Check for command-line tools (only needed if not using XML directly)
       (unless use-local-files
@@ -461,9 +520,34 @@ graph-like exploration of verb relationships."
       
       ;; Always check for XML files
       (insert "Data files:\n")
-      (insert (format "  French verbs XML: %s\n" (if fr-verbs "Found" "Not found")))
-      (insert (format "  French conjugation XML: %s\n" (if fr-conj-xml "Found" "Not found")))
-      (insert (format "  Verb clusters data: %s\n\n" (if clusters "Found" "Not found")))
+      (insert (format "  French verbs XML: %s (%s)\n" 
+                     (if fr-verbs "Found" "Not found") fr-verbs-path))
+      (insert (format "  French conjugation XML: %s (%s)\n" 
+                     (if fr-conj-xml "Found" "Not found") fr-conj-path))
+      (insert (format "  Verb clusters data: %s (%s)\n\n" 
+                     (if clusters "Found" "Not found") clusters-path))
+      
+      ;; Try fallback paths
+      (unless (and fr-verbs fr-conj-xml clusters)
+        (insert "Checking alternative locations:\n")
+        (dolist (file '(("verbs-fr.xml" . "French verbs XML")
+                        ("conjugation-fr.xml" . "French conjugation XML")
+                        ("french_verb_clusters.json" . "Verb clusters data")))
+          (let* ((filename (car file))
+                 (desc (cdr file))
+                 (in-current-dir (expand-file-name filename default-directory))
+                 (sample-file (expand-file-name 
+                              (concat (file-name-sans-extension filename) "-sample.xml")
+                              default-directory)))
+            (insert (format "  %s:\n" desc))
+            (insert (format "    In current dir: %s (%s)\n" 
+                           (if (file-readable-p in-current-dir) "Found" "Not found")
+                           in-current-dir))
+            (when (string-match-p "\\.xml$" filename)
+              (insert (format "    Sample file: %s (%s)\n" 
+                             (if (file-readable-p sample-file) "Found" "Not found")
+                             sample-file)))))
+        (insert "\n"))
       
       ;; Evaluate overall status
       (insert "Mode configuration:\n")
@@ -488,18 +572,49 @@ graph-like exploration of verb relationships."
 ;; Initialize the package
 (defun verbiste--init ()
   "Initialize verbiste package."
+  
+  ;; Setup debug message
+  (message "Verbiste initializing...")
+  (message "  verbiste-data-dir: %s" verbiste-data-dir)
+  (message "  Current dir: %s" default-directory)
+  (let ((pkg-dir (and load-file-name (file-name-directory load-file-name))))
+    (message "  Package dir: %s" (or pkg-dir "unknown")))
+  
+  ;; Check clusters file existence
+  (message "  Clusters file: %s (%s)" 
+           verbiste-clusters-file
+           (if (file-readable-p verbiste-clusters-file) "readable" "not readable"))
+  
   ;; Load verb clusters if available
   (when (file-readable-p verbiste-clusters-file)
-    (verbiste--load-verb-clusters))
+    (message "Loading verb clusters...")
+    (verbiste--load-verb-clusters)
+    (message "Verb clusters loaded."))
   
-  ;; If local XML files are available but command-line tools aren't,
-  ;; use direct XML parsing by default
-  (let ((fr-verbs (file-readable-p (expand-file-name "verbs-fr.xml" verbiste-data-dir)))
-        (fr-conj-xml (file-readable-p (expand-file-name "conjugation-fr.xml" verbiste-data-dir)))
-        (fr-conj (executable-find verbiste-french-conjugator-path))
-        (fr-deconj (executable-find verbiste-french-deconjugator-path)))
-    (when (and fr-verbs fr-conj-xml (not (and fr-conj fr-deconj)))
-      (setq verbiste-use-xml-directly t))))
+  ;; Check XML files existence
+  (let ((fr-verbs-path (expand-file-name "verbs-fr.xml" verbiste-data-dir))
+        (fr-conj-path (expand-file-name "conjugation-fr.xml" verbiste-data-dir)))
+    (message "  French verbs XML: %s (%s)"
+             fr-verbs-path
+             (if (file-readable-p fr-verbs-path) "readable" "not readable"))
+    (message "  French conjugation XML: %s (%s)"
+             fr-conj-path
+             (if (file-readable-p fr-conj-path) "readable" "not readable"))
+    
+    ;; If local XML files are available but command-line tools aren't,
+    ;; use direct XML parsing by default
+    (let ((fr-verbs (file-readable-p fr-verbs-path))
+          (fr-conj-xml (file-readable-p fr-conj-path))
+          (fr-conj (executable-find verbiste-french-conjugator-path))
+          (fr-deconj (executable-find verbiste-french-deconjugator-path)))
+      
+      ;; Auto-enable direct XML parsing if needed
+      (when (and fr-verbs fr-conj-xml (not (and fr-conj fr-deconj)))
+        (setq verbiste-use-xml-directly t)
+        (message "  Auto-enabling direct XML parsing."))
+      
+      (message "Verbiste initialized. XML direct parsing: %s" 
+               (if verbiste-use-xml-directly "enabled" "disabled")))))
 
 ;; Initialize when loaded
 (eval-after-load 'verbiste '(verbiste--init))

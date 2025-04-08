@@ -1,7 +1,7 @@
 # Verbiste.el - Emacs interface to Verbiste French/Italian verb conjugation
 # GNUmakefile - For use with gmake (GNU Make)
 
-.PHONY: all build compile install test clean check-deps help lint package-lint package checkdoc verbiste-json verbiste-org verbiste-all dist screenshot demo copy-xml-files
+.PHONY: all build compile install test clean check-deps help lint bytec package verbiste-json verbiste-org verbiste-all dist screenshot demo embeddings clusters $(DIST_DIR) $(DATA_DIR)
 
 # Variables
 EMACS = emacs
@@ -16,9 +16,17 @@ PKG_NAME = verbiste-$(PKG_VERSION)
 # Directory definitions
 VERBISTE_XML_DIR = /usr/local/share/verbiste-0.1
 VERBISTE_XML = $(VERBISTE_XML_DIR)/verbs-fr.xml
+VERBISTE_XSL = verbiste_extract.xsl
 
+# Tool directories
+TOOLS_DIR = verbiste_tools
 DATA_DIR = ./data
 DIST_DIR = ./dist
+
+# Data files
+VERBS_LIST = $(DATA_DIR)/french_verbs_list.txt
+VERBS_EMBEDDINGS = $(DATA_DIR)/french_verbs_embeddings.json
+VERB_CLUSTERS = $(DATA_DIR)/french_verb_clusters.json
 
 # Default target shows help
 .DEFAULT_GOAL := help
@@ -170,33 +178,21 @@ help:                             # Show this help
 
 VERBISTE_XSL = verbiste_extract.xsl
 
-# Tools directory
-TOOLS_DIR = verbiste_tools
-
-# Data files
-VERBS_LIST = data/french_verbs_list.txt
-VERBS_EMBEDDINGS = data/french_verbs_embeddings.json
-VERB_CLUSTERS = data/french_verb_clusters.json
-
-
 # Extract verb list from Verbiste XML
-$(VERBS_LIST): $(VERBISTE_XSL) $(VERBISTE_XML)
-	@mkdir -p data
+$(VERBS_LIST): $(VERBISTE_XSL) $(DATA_DIR)/verbs-fr.xml | $(DATA_DIR)
 	xml tr $^ > $@
 	@echo "Generated verbs list: $@"
 
 # Generate embeddings for all verbs
-$(VERBS_EMBEDDINGS): $(VERBS_LIST)
-	@mkdir -p data
-	$(PYTHON) $(TOOLS_DIR)/generate_verb_embeddings.py $^ $@
+$(VERBS_EMBEDDINGS): $(VERBS_LIST) | $(DATA_DIR)
+	$(PYTHON) -m $(TOOLS_DIR).embed_verbs $< $@
 	@echo "Generated verb embeddings: $@"
 
 embeddings: $(VERBS_EMBEDDINGS)
 
 # Generate verb clusters based on embedding similarity
-$(VERB_CLUSTERS): $(VERBS_EMBEDDINGS)
-	@mkdir -p data
-	$(PYTHON) $(TOOLS_DIR)/generate_verb_clusters.py $^ $@
+$(VERB_CLUSTERS): $(VERBS_EMBEDDINGS) | $(DATA_DIR)
+	$(PYTHON) -m $(TOOLS_DIR).cluster_verbs $< $@
 	@echo "Generated verb clusters: $@"
 
 clusters: $(VERB_CLUSTERS)
