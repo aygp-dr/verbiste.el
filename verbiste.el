@@ -362,11 +362,13 @@ Returns a formatted string with the deconjugation results."
   "Get list of verbs similar to VERB from clusters data."
   (let ((clusters (verbiste--load-verb-clusters)))
     (when clusters
-      (let ((similar-verbs (assoc-default verb clusters)))
+      (let* ((verb-symbol (intern verb))
+             (verb-entry (assoc verb-symbol clusters))
+             (similar-verbs (when verb-entry (cdr verb-entry))))
         (when similar-verbs
           (mapcar (lambda (item)
-                    (cons (assoc-default 'verb item)
-                          (assoc-default 'similarity item)))
+                    (cons (cdr (assoc 'verb item))
+                          (cdr (assoc 'similarity item))))
                   similar-verbs))))))
 
 (defun verbiste--get-random-verbs (count)
