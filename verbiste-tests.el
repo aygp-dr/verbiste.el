@@ -112,7 +112,64 @@
   ;; Test random verb selection
   (let ((random-verbs (verbiste--get-random-verbs 5)))
     (should (listp random-verbs))
-    (should (<= (length random-verbs) 5))))
+    (should (<= (length random-verbs) 5))
+    (should (stringp (car random-verbs))))
+  
+  ;; Define a utility function for cosine similarity calculation
+  (defun verbiste-test--cosine-similarity (v1 v2)
+    "Calculate the cosine similarity between vectors V1 and V2."
+    (let* ((dot-product (apply #'+ (cl-mapcar #'* v1 v2)))
+           (magnitude1 (sqrt (apply #'+ (mapcar (lambda (x) (* x x)) v1))))
+           (magnitude2 (sqrt (apply #'+ (mapcar (lambda (x) (* x x)) v2))))
+           (magnitudes (* magnitude1 magnitude2)))
+      (if (zerop magnitudes)
+          0.0
+        (/ dot-product magnitudes))))
+  
+  ;; Test embedding similarity calculation
+  (let* ((v1 '(0.1 0.2 0.3))
+         (v2 '(0.2 0.3 0.4))
+         (v3 '(-0.1 -0.2 -0.3))
+         (sim1-2 (verbiste-test--cosine-similarity v1 v2))
+         (sim1-3 (verbiste-test--cosine-similarity v1 v3)))
+    ;; Similar vectors should have higher similarity
+    (should (> sim1-2 0.9))
+    ;; Opposite vectors should have negative similarity
+    (should (< sim1-3 0)))
+  
+  ;; Test similar verb retrieval with different key formats
+  (let ((mock-clusters 
+         ;; Mix of symbol and string keys to test robustness
+         `((dominer . (,(list (cons 'verb "diriger") (cons 'similarity 0.92))
+                       ,(list (cons "verb" "contrôler") (cons "similarity" 0.87))))
+           ("parler" . (,(list (cons 'verb "discuter") (cons 'similarity 0.94))
+                        ,(list (cons "verb" "converser") (cons "similarity" 0.88)))))))
+    
+    ;; Mock the cluster loading function temporarily
+    (cl-letf (((symbol-function 'verbiste--load-verb-clusters) 
+               (lambda () mock-clusters)))
+      
+      ;; Test with symbol key
+      (let ((similar-verbs (verbiste--get-similar-verbs "dominer")))
+        (should similar-verbs)
+        (should (= (length similar-verbs) 2))
+        (should (stringp (caar similar-verbs)))
+        ;; Only test that some string is returned, not exact values
+        (should (stringp (caar similar-verbs)))
+        (should (numberp (cdar similar-verbs))))
+      
+      ;; Test with string key
+      (let ((similar-verbs (verbiste--get-similar-verbs "parler")))
+        (should similar-verbs)
+        (should (= (length similar-verbs) 2))
+        (should (stringp (caar similar-verbs)))
+        (should (numberp (cdar similar-verbs))))
+      
+      ;; Test random verbs
+      (let ((random-verbs (verbiste--get-random-verbs 5)))
+        (should random-verbs)
+        (should (<= (length random-verbs) 2)) ;; Only 2 verbs in our mock data
+        (should (stringp (car random-verbs)))))))
 
 (provide 'verbiste-tests)
 ;;; verbiste-tests.el ends here

@@ -362,20 +362,30 @@ Returns a formatted string with the deconjugation results."
   "Get list of verbs similar to VERB from clusters data."
   (let ((clusters (verbiste--load-verb-clusters)))
     (when clusters
-      (let* ((verb-symbol (intern verb))
-             (verb-entry (assoc verb-symbol clusters))
+      ;; Try both string and symbol lookups to handle different JSON formats
+      (let* ((verb-entry (or (assoc verb clusters)         ;; Try direct string lookup first
+                             (assoc (intern verb) clusters) ;; Try symbol lookup as fallback
+                             (assoc (intern-soft verb) clusters))) ;; Another fallback
              (similar-verbs (when verb-entry (cdr verb-entry))))
         (when similar-verbs
           (mapcar (lambda (item)
-                    (cons (cdr (assoc 'verb item))
-                          (cdr (assoc 'similarity item))))
+                    (let ((sim-verb (cdr (or (assoc "verb" item)    ;; Try string keys
+                                             (assoc 'verb item))))  ;; Try symbol keys
+                          (sim-score (cdr (or (assoc "similarity" item)
+                                              (assoc 'similarity item)))))
+                      (cons (if (stringp sim-verb) sim-verb (symbol-name sim-verb))
+                            (or sim-score 0.5)))) ;; Default similarity if missing
                   similar-verbs))))))
 
 (defun verbiste--get-random-verbs (count)
   "Get COUNT random verbs from the clusters data."
   (let ((clusters (verbiste--load-verb-clusters)))
     (when clusters
-      (let ((verb-list (mapcar #'car clusters)))
+      (let ((verb-list (mapcar (lambda (entry)
+                                 (let ((verb (car entry)))
+                                   ;; Convert symbols to strings if needed
+                                   (if (symbolp verb) (symbol-name verb) verb)))
+                               clusters)))
         (if (<= (length verb-list) count)
             verb-list
           (cl-loop repeat count
