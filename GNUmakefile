@@ -27,6 +27,7 @@ DIST_DIR = ./dist
 VERBS_LIST = $(DATA_DIR)/french_verbs_list.txt
 VERBS_EMBEDDINGS = $(DATA_DIR)/french_verbs_embeddings.json
 VERB_CLUSTERS = $(DATA_DIR)/french_verb_clusters.json
+VERB_TOPICS = $(DATA_DIR)/french_verb_topics.json
 
 # Default target shows help
 .DEFAULT_GOAL := help
@@ -185,16 +186,23 @@ $(VERBS_LIST): $(VERBISTE_XSL) $(DATA_DIR)/verbs-fr.xml | $(DATA_DIR)
 
 # Generate embeddings for all verbs
 $(VERBS_EMBEDDINGS): $(VERBS_LIST) | $(DATA_DIR)
-	$(PYTHON) -m $(TOOLS_DIR).embed_verbs $< $@
+	$(PYTHON) -m $(TOOLS_DIR).generate_verb_embeddings $< $@
 	@echo "Generated verb embeddings: $@"
 
 embeddings: $(VERBS_EMBEDDINGS)
 
 # Generate verb clusters based on embedding similarity
 $(VERB_CLUSTERS): $(VERBS_EMBEDDINGS) | $(DATA_DIR)
-	$(PYTHON) -m $(TOOLS_DIR).cluster_verbs $< $@
+	$(PYTHON) -m $(TOOLS_DIR).generate_verb_clusters $< $@
 	@echo "Generated verb clusters: $@"
 
 clusters: $(VERB_CLUSTERS)
+
+# Generate topic-based verb clusters for pedagogical purposes
+$(VERB_TOPICS): $(VERBS_EMBEDDINGS) | $(DATA_DIR)
+	$(PYTHON) -m $(TOOLS_DIR).generate_topic_clusters $< $@ 15
+	@echo "Generated verb topic clusters: $@"
+
+topics: $(VERB_TOPICS)
 
 
