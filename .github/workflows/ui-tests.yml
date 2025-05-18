@@ -1,0 +1,38 @@
+name: UI Tests
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Emacs
+      uses: purcell/setup-emacs@master
+      with:
+        version: 28.2
+    
+    - name: Run batch UI tests
+      run: |
+        emacs --batch -L . -l integration-tests.org --eval "(verbiste-ui-batch-tests)"
+    
+    - name: Install expect
+      run: sudo apt-get install expect
+    
+    - name: Run interactive UI tests
+      run: |
+        ./test-ui-modes.sh
+    
+    - name: Upload test results
+      uses: actions/upload-artifact@v3
+      with:
+        name: ui-test-results
+        path: |
+          batch-test-results.txt
+          ui-test-results/
