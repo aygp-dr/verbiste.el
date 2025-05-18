@@ -1,7 +1,7 @@
 # Verbiste.el - Emacs interface to Verbiste French/Italian verb conjugation
 # GNUmakefile - For use with gmake (GNU Make)
 
-.PHONY: all build compile install test clean check-deps help lint bytec package verbiste-json verbiste-org verbiste-all dist screenshot demo embeddings clusters $(DIST_DIR) $(DATA_DIR)
+.PHONY: all build compile install test clean check-deps help lint bytec checkdoc package verbiste-json verbiste-org verbiste-all dist screenshot demo embeddings clusters $(DIST_DIR) $(DATA_DIR)
 
 # Variables
 EMACS = emacs
@@ -65,10 +65,14 @@ check-deps: $(VERBISTE_XML_DIR)/verbs-fr.xml $(VERBISTE_XML_DIR)/conjugation-fr.
 test:                             # Run tests
 	$(BATCH) -l ert -l verbiste.el -l $(TESTFILES) -f ert-run-tests-batch-and-exit
 
-lint: test bytec               # Run all linters
+lint: test               # Run all linters
+	$(BATCH) -l elisp-lint.el -f elisp-lint-batch-files $(ELFILES)
 
 bytec:                           # Basic syntax check via byte-compilation
-	$(BATCH) -l lint-file.el verbiste.el
+	$(BATCH) --eval '(byte-compile-file "verbiste.el")'
+
+checkdoc:                        # Run checkdoc on all files
+	$(BATCH) -l checkdoc-file.el verbiste.el
 
 # Directory targets
 $(DATA_DIR):
@@ -139,7 +143,7 @@ package: $(ELFILES) $(TESTFILES)   # Create package suitable for submission to M
 	@echo "  https://github.com/melpa/melpa"
 
 dist: clean compile test lint | $(DIST_DIR)  # Create distribution package
-	tar -cf $(DIST_DIR)/$(PKG_NAME).tar $(ELFILES) $(ELCFILES) $(TESTFILES) README.org CLAUDE.org GNUmakefile examples.org
+	tar -cf $(DIST_DIR)/$(PKG_NAME).tar $(ELFILES) $(ELCFILES) $(TESTFILES) README.org CLAUDE.org GNUmakefile examples.org elisp-lint.el
 	@echo "Package created at $(DIST_DIR)/$(PKG_NAME).tar"
 
 # Clean targets

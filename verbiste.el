@@ -68,7 +68,7 @@
   :group 'languages
   :prefix "verbiste-")
 
-(defcustom verbiste-data-dir 
+(defcustom verbiste-data-dir
   (or
    ;; First try: data/ in the package directory
    (let ((pkg-dir (and load-file-name (file-name-directory load-file-name))))
@@ -76,12 +76,12 @@
        (let ((data-dir (expand-file-name "data" pkg-dir)))
          (when (file-directory-p data-dir)
            data-dir))))
-   
+
    ;; Second try: data/ in current directory
    (let ((data-dir (expand-file-name "data" default-directory)))
      (when (file-directory-p data-dir)
        data-dir))
-   
+
    ;; Last resort: Use the system verbiste directory
    "/usr/local/share/verbiste-0.1")
   "Directory where Verbiste XML files are located.
@@ -128,12 +128,12 @@ This is more efficient but requires the XML files to be accessible."
    (let ((clusters-path (expand-file-name "french_verb_clusters.json" verbiste-data-dir)))
      (when (file-exists-p clusters-path)
        clusters-path))
-   
+
    ;; Try in current directory
    (let ((local-path (expand-file-name "french_verb_clusters.json" default-directory)))
      (when (file-exists-p local-path)
        local-path))
-   
+
    ;; Default fallback (will be used if file doesn't exist)
    (expand-file-name "french_verb_clusters.json" verbiste-data-dir))
   "File containing French verb clusters data."
@@ -157,11 +157,11 @@ This is more efficient but requires the XML files to be accessible."
 
 (defun verbiste--load-xml-file (filename)
   "Load XML from FILENAME.
-Tries to find the file in verbiste-data-dir, current directory, 
+Tries to find the file in verbiste-data-dir, current directory,
 or predefined sample files."
   (let* ((file-in-data-dir (expand-file-name filename verbiste-data-dir))
          (file-in-current-dir (expand-file-name filename default-directory))
-         (sample-file (expand-file-name 
+         (sample-file (expand-file-name
                       (concat (file-name-sans-extension filename) "-sample.xml")
                       default-directory))
          (file (cond
@@ -192,7 +192,7 @@ or predefined sample files."
           (erase-buffer)
           (insert (format "Conjugation of French verb: %s\n\n" verb))
           (insert output)
-          
+
           ;; Add navigation buttons
           (goto-char (point-min))
           (end-of-line)
@@ -203,14 +203,14 @@ or predefined sample files."
                                  (verbiste-display-similar-verbs verb))
                        'help-echo "View similar verbs"
                        'follow-link t)
-          
+
           (insert " [random verbs]")
           (make-button (- (point) 14) (point)
                        'action (lambda (_)
                                  (verbiste-browse-random-verbs))
                        'help-echo "Browse random verbs"
                        'follow-link t)
-          
+
           (goto-char (point-min))
           ;; Make buffer read-only but allow button clicks
           (special-mode)
@@ -225,7 +225,7 @@ Returns a formatted string with the conjugation tables."
   ;; 1. Load and parse the XML files
   ;; 2. Find the verb's template
   ;; 3. Format the conjugation in a readable way
-  
+
   ;; For now, we'll just return a simple message
   (format "Direct XML parsing not fully implemented yet.\nUse command-line tools for complete conjugation tables.\n\nVerb: %s\nLanguage: French" verb))
 
@@ -243,13 +243,13 @@ Adds interactive navigation buttons for the result."
         (erase-buffer)
         (insert (format "Deconjugation of French verb: %s\n\n" verb))
         (insert output)
-        
+
         ;; Try to extract the infinitive(s) from the output
         (goto-char (point-min))
         (let ((infinitives nil))
           (while (re-search-forward "infinitive: \\(.*\\)$" nil t)
             (push (match-string 1) infinitives))
-          
+
           ;; Add navigation buttons for each found infinitive
           (when infinitives
             (goto-char (point-max))
@@ -262,7 +262,7 @@ Adds interactive navigation buttons for the result."
                                      (verbiste-french-conjugation inf))
                            'help-echo "Conjugate this verb"
                            'follow-link t)
-              
+
               (insert " [similar verbs]")
               (make-button (- (point) 15) (point)
                            'action (lambda (_)
@@ -270,7 +270,7 @@ Adds interactive navigation buttons for the result."
                            'help-echo "View similar verbs"
                            'follow-link t)
               (insert "\n"))))
-        
+
         ;; Add random verbs button
         (goto-char (point-max))
         (insert "\n[Browse random verbs]")
@@ -279,7 +279,7 @@ Adds interactive navigation buttons for the result."
                                (verbiste-browse-random-verbs))
                      'help-echo "Browse random verbs"
                      'follow-link t)
-        
+
         (goto-char (point-min))
         (special-mode) ;; Make buffer read-only with navigation keys
         (display-buffer (current-buffer))))
@@ -293,7 +293,7 @@ Returns a formatted string with the deconjugation results."
   ;; 1. Load and parse the XML files
   ;; 2. Search through all possible conjugations to find matches
   ;; 3. Return the infinitive forms
-  
+
   ;; For now, we'll just return a simple message
   (format "Direct XML parsing not fully implemented yet.\nUse command-line tools for complete deconjugation.\n\nConjugated verb: %s\nLanguage: French" verb))
 
@@ -352,7 +352,7 @@ Returns a formatted string with the deconjugation results."
                   (setq verbiste--verb-clusters-cache (json-read))
                   (message "JSON parsed successfully. Found %d verb entries."
                            (length verbiste--verb-clusters-cache))))
-            (error 
+            (error
              (message "Error parsing clusters file: %s" (error-message-string err))
              nil)))
       (message "Cannot read verb clusters file: %s" verbiste-clusters-file)))
@@ -402,7 +402,7 @@ Allows clicking on verbs to navigate the similarity graph."
         (with-current-buffer (get-buffer-create "*Verbiste Similar Verbs*")
           (erase-buffer)
           (insert (format "Verbs similar to '%s':\n\n" verb))
-          
+
           ;; Add [conjugate] button for the main verb
           (insert "[conjugate]")
           (make-button (- (point) 11) (point)
@@ -411,7 +411,7 @@ Allows clicking on verbs to navigate the similarity graph."
                        'help-echo "Click to conjugate this verb"
                        'follow-link t)
           (insert "\n\n")
-          
+
           ;; Add clickable similar verbs with conjugation buttons
           (dolist (v similar-verbs)
             (let ((sim-verb (car v))
@@ -424,10 +424,10 @@ Allows clicking on verbs to navigate the similarity graph."
                                        (verbiste-display-similar-verbs sim-verb))
                              'help-echo "Click to see similar verbs"
                              'follow-link t))
-              
+
               ;; Add similarity score
               (insert (format "(similarity: %.4f) " sim-score))
-              
+
               ;; Add conjugation button
               (insert "[conjugate]")
               (make-button (- (point) 11) (point)
@@ -436,7 +436,7 @@ Allows clicking on verbs to navigate the similarity graph."
                            'help-echo "Click to conjugate this verb"
                            'follow-link t)
               (insert "\n")))
-          
+
           ;; Add back link to browse random verbs
           (insert "\n[Browse random verbs]")
           (make-button (- (point) 19) (point)
@@ -444,7 +444,7 @@ Allows clicking on verbs to navigate the similarity graph."
                                  (verbiste-browse-random-verbs))
                        'help-echo "Click to browse random verbs"
                        'follow-link t)
-          
+
           (goto-char (point-min))
           (special-mode) ;; Make buffer read-only with navigation keys
           (display-buffer (current-buffer)))
@@ -462,7 +462,7 @@ graph-like exploration of verb relationships."
           (insert "Random French Verbs\n\n")
           (insert "Click on a verb to see similar verbs and navigate the similarity graph.\n")
           (insert "Press TAB to navigate between buttons, ENTER to activate them.\n\n")
-          
+
           ;; Add buttons for each verb
           (dolist (verb verbs)
             (insert "- ")
@@ -474,7 +474,7 @@ graph-like exploration of verb relationships."
                                      (verbiste-display-similar-verbs verb))
                            'help-echo "Click to see similar verbs"
                            'follow-link t))
-            
+
             ;; Add conjugation button
             (insert " [conjugate]")
             (make-button (- (point) 11) (point)
@@ -483,7 +483,7 @@ graph-like exploration of verb relationships."
                          'help-echo "Click to conjugate this verb"
                          'follow-link t)
             (insert "\n"))
-          
+
           ;; Add refresh button
           (insert "\n[Refresh with new random verbs]")
           (make-button (- (point) 28) (point)
@@ -491,7 +491,7 @@ graph-like exploration of verb relationships."
                                  (verbiste-browse-random-verbs))
                        'help-echo "Click to get new random verbs"
                        'follow-link t)
-          
+
           (goto-char (point-min))
           (special-mode) ;; Make buffer read-only with navigation keys
           (local-set-key (kbd "<tab>") 'forward-button)
@@ -516,29 +516,29 @@ graph-like exploration of verb relationships."
     (with-current-buffer (get-buffer-create "*Verbiste Installation Check*")
       (erase-buffer)
       (insert "Verbiste Installation Check\n\n")
-      
+
       ;; Directory information
       (insert "Directory Information:\n")
       (insert (format "  verbiste-data-dir: %s\n" verbiste-data-dir))
       (insert (format "  Current directory: %s\n" default-directory))
-      (insert (format "  Package directory: %s\n\n" 
+      (insert (format "  Package directory: %s\n\n"
                      (or (and load-file-name (file-name-directory load-file-name)) "unknown")))
-      
+
       ;; Check for command-line tools (only needed if not using XML directly)
       (unless use-local-files
         (insert "Command-line tools:\n")
         (insert (format "  French conjugator: %s\n" (if fr-conj "Found" "Not found")))
         (insert (format "  French deconjugator: %s\n\n" (if fr-deconj "Found" "Not found"))))
-      
+
       ;; Always check for XML files
       (insert "Data files:\n")
-      (insert (format "  French verbs XML: %s (%s)\n" 
+      (insert (format "  French verbs XML: %s (%s)\n"
                      (if fr-verbs "Found" "Not found") fr-verbs-path))
-      (insert (format "  French conjugation XML: %s (%s)\n" 
+      (insert (format "  French conjugation XML: %s (%s)\n"
                      (if fr-conj-xml "Found" "Not found") fr-conj-path))
-      (insert (format "  Verb clusters data: %s (%s)\n\n" 
+      (insert (format "  Verb clusters data: %s (%s)\n\n"
                      (if clusters "Found" "Not found") clusters-path))
-      
+
       ;; Try fallback paths
       (unless (and fr-verbs fr-conj-xml clusters)
         (insert "Checking alternative locations:\n")
@@ -548,61 +548,61 @@ graph-like exploration of verb relationships."
           (let* ((filename (car file))
                  (desc (cdr file))
                  (in-current-dir (expand-file-name filename default-directory))
-                 (sample-file (expand-file-name 
+                 (sample-file (expand-file-name
                               (concat (file-name-sans-extension filename) "-sample.xml")
                               default-directory)))
             (insert (format "  %s:\n" desc))
-            (insert (format "    In current dir: %s (%s)\n" 
+            (insert (format "    In current dir: %s (%s)\n"
                            (if (file-readable-p in-current-dir) "Found" "Not found")
                            in-current-dir))
             (when (string-match-p "\\.xml$" filename)
-              (insert (format "    Sample file: %s (%s)\n" 
+              (insert (format "    Sample file: %s (%s)\n"
                              (if (file-readable-p sample-file) "Found" "Not found")
                              sample-file)))))
         (insert "\n"))
-      
+
       ;; Evaluate overall status
       (insert "Mode configuration:\n")
       (insert (format "  XML direct parsing: %s\n\n" (if use-local-files "Enabled" "Disabled")))
-      
+
       (insert "Overall status: ")
-      (if (or 
+      (if (or
            ;; If using direct XML parsing
            (and use-local-files fr-verbs fr-conj-xml)
            ;; If using command-line tools
            (and (not use-local-files) fr-conj fr-deconj))
           (insert "Ready for use\n")
         (insert "Installation incomplete\n"))
-      
+
       ;; Add usage suggestion if XML files are available but tools aren't
       (when (and (not use-local-files) fr-verbs fr-conj-xml (not (and fr-conj fr-deconj)))
         (insert "\nSuggestion: Enable direct XML parsing with (setq verbiste-use-xml-directly t)\n"))
-        
+
       (goto-char (point-min))
       (display-buffer (current-buffer)))))
 
 ;; Initialize the package
 (defun verbiste--init ()
   "Initialize verbiste package."
-  
+
   ;; Setup debug message
   (message "Verbiste initializing...")
   (message "  verbiste-data-dir: %s" verbiste-data-dir)
   (message "  Current dir: %s" default-directory)
   (let ((pkg-dir (and load-file-name (file-name-directory load-file-name))))
     (message "  Package dir: %s" (or pkg-dir "unknown")))
-  
+
   ;; Check clusters file existence
-  (message "  Clusters file: %s (%s)" 
+  (message "  Clusters file: %s (%s)"
            verbiste-clusters-file
            (if (file-readable-p verbiste-clusters-file) "readable" "not readable"))
-  
+
   ;; Load verb clusters if available
   (when (file-readable-p verbiste-clusters-file)
     (message "Loading verb clusters...")
     (verbiste--load-verb-clusters)
     (message "Verb clusters loaded."))
-  
+
   ;; Check XML files existence
   (let ((fr-verbs-path (expand-file-name "verbs-fr.xml" verbiste-data-dir))
         (fr-conj-path (expand-file-name "conjugation-fr.xml" verbiste-data-dir)))
@@ -612,20 +612,20 @@ graph-like exploration of verb relationships."
     (message "  French conjugation XML: %s (%s)"
              fr-conj-path
              (if (file-readable-p fr-conj-path) "readable" "not readable"))
-    
+
     ;; If local XML files are available but command-line tools aren't,
     ;; use direct XML parsing by default
     (let ((fr-verbs (file-readable-p fr-verbs-path))
           (fr-conj-xml (file-readable-p fr-conj-path))
           (fr-conj (executable-find verbiste-french-conjugator-path))
           (fr-deconj (executable-find verbiste-french-deconjugator-path)))
-      
+
       ;; Auto-enable direct XML parsing if needed
       (when (and fr-verbs fr-conj-xml (not (and fr-conj fr-deconj)))
         (setq verbiste-use-xml-directly t)
         (message "  Auto-enabling direct XML parsing."))
-      
-      (message "Verbiste initialized. XML direct parsing: %s" 
+
+      (message "Verbiste initialized. XML direct parsing: %s"
                (if verbiste-use-xml-directly "enabled" "disabled")))))
 
 ;; Initialize when loaded
