@@ -1,13 +1,14 @@
 # Verbiste.el - Emacs interface to Verbiste French/Italian verb conjugation
 # GNUmakefile - For use with gmake (GNU Make)
 
-.PHONY: all build compile install test clean check-deps help lint bytec checkdoc package verbiste-json verbiste-org verbiste-all dist screenshot demo embeddings clusters $(DIST_DIR) $(DATA_DIR)
+.PHONY: all build compile install test clean check-deps help lint bytec checkdoc package verbiste-json verbiste-org verbiste-all create-dist screenshot demo embeddings clusters $(DIST_DIR) $(DATA_DIR)
 
 # Variables
 EMACS = emacs
 BATCH = $(EMACS) -Q -batch
 PYTHON := poetry run python3
-ELFILES = verbiste.el ob-verbiste.el
+# Main Elisp files
+ELFILES = verbiste.el
 ELCFILES = $(ELFILES:.el=.elc)
 TESTFILES = verbiste-tests.el
 PKG_VERSION = $(shell grep -o "Version: [0-9.]*" verbiste.el | cut -d' ' -f2)
@@ -78,6 +79,7 @@ checkdoc:                        # Run checkdoc on all files
 $(DATA_DIR):
 	mkdir -p $@
 
+# Create distribution directory
 $(DIST_DIR):
 	mkdir -p $@
 
@@ -142,8 +144,8 @@ package: $(ELFILES) $(TESTFILES)   # Create package suitable for submission to M
 	@echo "To submit to MELPA, send a pull request to:"
 	@echo "  https://github.com/melpa/melpa"
 
-dist: clean compile test lint | $(DIST_DIR)  # Create distribution package
-	tar -cf $(DIST_DIR)/$(PKG_NAME).tar $(ELFILES) $(ELCFILES) $(TESTFILES) README.org CLAUDE.org GNUmakefile examples.org elisp-lint.el
+create-dist: clean compile test lint | $(DIST_DIR)  # Create distribution package
+	tar -cf $(DIST_DIR)/$(PKG_NAME).tar $(ELFILES) $(ELCFILES) $(TESTFILES) README.org CLAUDE.org GNUmakefile examples.org elisp-lint.el $(DATA_DIR)/french_verb_clusters.json
 	@echo "Package created at $(DIST_DIR)/$(PKG_NAME).tar"
 
 # Clean targets
