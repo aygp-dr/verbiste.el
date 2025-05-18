@@ -1,7 +1,7 @@
 # Verbiste.el - Emacs interface to Verbiste French/Italian verb conjugation
 # GNUmakefile - For use with gmake (GNU Make)
 
-.PHONY: all build compile install test clean check-deps help lint bytec checkdoc package verbiste-json verbiste-org verbiste-all create-dist screenshot demo embeddings clusters $(DIST_DIR) $(DATA_DIR)
+.PHONY: all build compile install test clean check-deps help lint bytec checkdoc package verbiste-json verbiste-org verbiste-all create-dist screenshot demo embeddings clusters sample-clusters $(DIST_DIR) $(DATA_DIR)
 
 # Variables
 EMACS = emacs
@@ -63,7 +63,7 @@ check-deps: $(VERBISTE_XML_DIR)/verbs-fr.xml $(VERBISTE_XML_DIR)/conjugation-fr.
 	@which french-deconjugator || echo "french-deconjugator: Not found"
 	@echo "All dependencies verified."
 
-test:                             # Run tests
+test: sample-clusters              # Run tests
 	$(BATCH) -l ert -l verbiste.el -l $(TESTFILES) -f ert-run-tests-batch-and-exit
 
 lint: test               # Run all linters
@@ -144,7 +144,13 @@ package: $(ELFILES) $(TESTFILES)   # Create package suitable for submission to M
 	@echo "To submit to MELPA, send a pull request to:"
 	@echo "  https://github.com/melpa/melpa"
 
-create-dist: clean compile test lint | $(DIST_DIR)  # Create distribution package
+sample-clusters:
+	@echo "Creating sample verb clusters for testing..."
+	@mkdir -p $(DATA_DIR)
+	@printf '{\n  "parler": [\n    {\n      "verb": "dialoguer",\n      "similarity": 0.95\n    },\n    {\n      "verb": "discuter",\n      "similarity": 0.92\n    },\n    {\n      "verb": "converser",\n      "similarity": 0.89\n    }\n  ],\n  "finir": [\n    {\n      "verb": "terminer",\n      "similarity": 0.96\n    },\n    {\n      "verb": "achever",\n      "similarity": 0.93\n    },\n    {\n      "verb": "conclure",\n      "similarity": 0.88\n    }\n  ],\n  "aller": [\n    {\n      "verb": "venir",\n      "similarity": 0.87\n    },\n    {\n      "verb": "partir",\n      "similarity": 0.85\n    },\n    {\n      "verb": "voyager",\n      "similarity": 0.81\n    }\n  ],\n  "être": [\n    {\n      "verb": "exister",\n      "similarity": 0.82\n    },\n    {\n      "verb": "devenir",\n      "similarity": 0.79\n    },\n    {\n      "verb": "sembler",\n      "similarity": 0.75\n    }\n  ],\n  "avoir": [\n    {\n      "verb": "posséder",\n      "similarity": 0.91\n    },\n    {\n      "verb": "obtenir",\n      "similarity": 0.87\n    },\n    {\n      "verb": "détenir",\n      "similarity": 0.83\n    }\n  ]\n}\n' > $(DATA_DIR)/french_verb_clusters.json
+	@echo "Sample verb clusters created at $(DATA_DIR)/french_verb_clusters.json"
+
+create-dist: clean sample-clusters compile test lint | $(DIST_DIR)  # Create distribution package
 	tar -cf $(DIST_DIR)/$(PKG_NAME).tar $(ELFILES) $(ELCFILES) $(TESTFILES) README.org CLAUDE.org GNUmakefile examples.org elisp-lint.el $(DATA_DIR)/french_verb_clusters.json
 	@echo "Package created at $(DIST_DIR)/$(PKG_NAME).tar"
 
