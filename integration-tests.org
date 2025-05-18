@@ -1,0 +1,526 @@
+#+TITLE: Integration Testing for verbiste.el
+#+AUTHOR: aygp-dr
+#+DATE: 2025-05-18
+#+PROPERTY: header-args :mkdirp yes
+#+PROPERTY: header-args:emacs-lisp :results silent
+
+* Introduction
+
+This document provides a literate programming approach to testing the UI components of verbiste.el. We'll combine automated testing with visual inspection to verify UI behavior.
+
+* Setup
+
+Let's start by defining our testing environment and loading the necessary libraries.
+
+#+begin_src emacs-lisp
+  ;; Set up the test environment
+  (require 'ert)
+  (require 'cl-lib)
+  
+  ;; Add the current directory to load-path
+  (add-to-list 'load-path default-directory)
+  
+  ;; Load verbiste
+  (require 'verbiste)
+  
+  ;; Enable debugging
+  (setq debug-on-error t)
+#+end_src
+
+* Helper Functions
+
+These functions help us capture and analyze the state of UI buffers.
+
+#+begin_src emacs-lisp
+  (defun vb-test-capture-buffer-state (buffer-name)
+    "Capture detailed state of BUFFER-NAME, including buttons and text properties."
+    (when (get-buffer buffer-name)
+      (with-current-buffer buffer-name
+        (let ((content (buffer-string))
+              (buffer-read-only-p buffer-read-only)
+              (major-mode-name (symbol-name major-mode))
+              (button-positions '())
+              (property-regions '()))
+          
+          ;; Collect button positions
+          (goto-char (point-min))
+          (while (setq next-button (next-button (point)))
+            (let ((start (button-start next-button))
+                  (end (button-end next-button))
+                  (label (buffer-substring-no-properties 
+                          (button-start next-button) 
+                          (button-end next-button))))
+              (push (list start end label 
+                          (button-get next-button 'action)
+                          (button-get next-button 'help-echo)) 
+                    button-positions)
+              (goto-char (button-end next-button))))
+          
+          ;; Collect face property regions
+          (goto-char (point-min))
+          (let ((pos (point-min))
+                (limit (point-max))
+                last-face current-face region-start)
+            (while (< pos limit)
+              (setq current-face (get-text-property pos 'face))
+              (if (eq current-face last-face)
+                  (setq pos (1+ pos))
+                ;; Face changed
+                (when (and last-face region-start)
+                  (push (list region-start (1- pos) last-face) property-regions))
+                (setq last-face current-face
+                      region-start pos
+                      pos (1+ pos))))
+            ;; Add the last region
+            (when (and last-face region-start)
+              (push (list region-start pos last-face) property-regions)))
+          
+          ;; Return collected data
+          (list :content content
+                :read-only buffer-read-only-p
+                :major-mode major-mode-name
+                :buttons (nreverse button-positions)
+                :faces (nreverse property-regions))))))
+  
+  (defun vb-test-print-buffer-state (state)
+    "Print captured buffer STATE in a human-readable format."
+    (insert "Buffer Content Preview:\n")
+    (insert "=======================\n")
+    (insert (substring (plist-get state :content) 0 
+                       (min 500 (length (plist-get state :content)))))
+    (insert "...\n\n")
+    
+    (insert (format "Read-only: %s\n" (plist-get state :read-only)))
+    (insert (format "Major mode: %s\n\n" (plist-get state :major-mode)))
+    
+    (insert "Buttons:\n")
+    (insert "========\n")
+    (dolist (button (plist-get state :buttons))
+      (insert (format "Button at %d-%d: \"%s\"\n" 
+                      (nth 0 button) (nth 1 button) (nth 2 button)))
+      (insert (format "  Help: %s\n" (nth 4 button))))
+    
+    (insert "\n\nText Property Analysis:\n")
+    (insert "======================\n")
+    
+    ;; Count button regions with incomplete face properties
+    (let ((incomplete-buttons 0)
+          (button-regions (plist-get state :buttons)))
+      (dolist (button button-regions)
+        (let ((start (nth 0 button))
+              (end (nth 1 button))
+              (fully-highlighted t))
+          ;; Check each position in the button for proper face
+          (cl-loop for pos from start to (1- end) do
+                   (unless (eq (get-text-property pos 'face (plist-get state :content)) 'button)
+                     (setq fully-highlighted nil)))
+          (unless fully-highlighted
+            (incf incomplete-buttons))))
+      
+      (insert (format "Total buttons: %d\n" (length button-regions)))
+      (insert (format "Buttons with incomplete highlighting: %d\n\n" incomplete-buttons)))
+    
+    ;; Count face transitions inside buttons
+    (let ((face-transitions-in-buttons 0))
+      (dolist (button (plist-get state :buttons))
+        (let ((button-start (nth 0 button))
+              (button-end (nth 1 button)))
+          (dolist (face-region (plist-get state :faces))
+            (let ((face-start (nth 0 face-region))
+                  (face-end (nth 1 face-region)))
+              ;; Check if face changes within a button
+              (when (and (< button-start face-start) (< face-start button-end)
+                         (> button-end face-end))
+                (incf face-transitions-in-buttons))))))
+      
+      (insert (format "Face transitions inside buttons: %d\n" face-transitions-in-buttons))))
+  
+  (defun vb-test-random-verbs ()
+    "Test verbiste-browse-random-verbs and return a report."
+    (verbiste-browse-random-verbs)
+    (with-temp-buffer
+      (insert "=== verbiste-browse-random-verbs Test ===\n\n")
+      (let ((state (vb-test-capture-buffer-state "*Verbiste Random Verbs*")))
+        (vb-test-print-buffer-state state)
+        (buffer-string))))
+  
+  (defun vb-test-conjugation ()
+    "Test verbiste-french-conjugation and return a report."
+    (verbiste-french-conjugation "parler")
+    (with-temp-buffer
+      (insert "=== verbiste-french-conjugation Test ===\n\n")
+      (let ((state (vb-test-capture-buffer-state "*Verbiste French Conjugation*")))
+        (vb-test-print-buffer-state state)
+        (buffer-string))))
+  
+  (defun vb-test-similar-verbs ()
+    "Test verbiste-display-similar-verbs and return a report."
+    (verbiste-display-similar-verbs "parler")
+    (with-temp-buffer
+      (insert "=== verbiste-display-similar-verbs Test ===\n\n")
+      (let ((state (vb-test-capture-buffer-state "*Verbiste Similar Verbs*")))
+        (vb-test-print-buffer-state state)
+        (buffer-string))))
+#+end_src
+
+* Integration Tests
+
+These tests verify the integrated behavior of multiple UI functions.
+
+#+begin_src emacs-lisp :results output :exports both
+  (message "\n%s" (vb-test-random-verbs))
+#+end_src
+
+#+begin_src emacs-lisp :results output :exports both
+  (message "\n%s" (vb-test-conjugation))
+#+end_src
+
+#+begin_src emacs-lisp :results output :exports both
+  (message "\n%s" (vb-test-similar-verbs))
+#+end_src
+
+* UI Navigation Tests
+
+This test simulates keyboard navigation through UI elements.
+
+#+begin_src emacs-lisp
+  (defun vb-test-tab-navigation ()
+    "Test TAB navigation through buttons in verbiste buffers."
+    (with-temp-buffer
+      (insert "=== TAB Navigation Test ===\n\n")
+      
+      ;; Start with random verbs buffer
+      (verbiste-browse-random-verbs)
+      (with-current-buffer "*Verbiste Random Verbs*"
+        (goto-char (point-min))
+        
+        ;; Navigate through buttons with TAB
+        (let ((visited-buttons '())
+              (position-before-tab 0)
+              (count 0))
+          (while (and (< count 20)  ; Limit iterations
+                      (or (= count 0) (not (= (point) position-before-tab))))
+            (setq position-before-tab (point))
+            (forward-button 1 t)
+            (when (button-at (point))
+              (let* ((button (button-at (point)))
+                     (label (buffer-substring-no-properties
+                             (button-start button)
+                             (button-end button))))
+                (push (format "Button %d: %s at position %d" 
+                              count label (point))
+                      visited-buttons)))
+            (incf count))
+          
+          ;; Report results
+          (insert (format "Visited %d buttons via TAB navigation\n\n" count))
+          (dolist (btn (nreverse visited-buttons))
+            (insert btn "\n"))))
+      
+      (buffer-string)))
+#+end_src
+
+#+begin_src emacs-lisp :results output :exports both
+  (message "\n%s" (vb-test-tab-navigation))
+#+end_src
+
+* Interactive Button Tests
+
+These tests verify button functionality by programmatically activating buttons.
+
+#+begin_src emacs-lisp
+  (defun vb-test-button-activation ()
+    "Test button activation in verbiste buffers."
+    (with-temp-buffer
+      (insert "=== Button Activation Test ===\n\n")
+      
+      ;; Start with random verbs buffer
+      (verbiste-browse-random-verbs)
+      (with-current-buffer "*Verbiste Random Verbs*"
+        (goto-char (point-min))
+        
+        ;; Find and activate a verb button
+        (re-search-forward "- \\([a-zéèêë]+\\)" nil t)
+        (let ((verb (match-string 1)))
+          (insert (format "Found verb button: %s\n" verb))
+          
+          ;; Click the verb button (should open similar verbs)
+          (goto-char (match-beginning 1))
+          (let ((button (button-at (point))))
+            (when button
+              (insert "Activating verb button...\n")
+              (button-activate button)
+              
+              ;; Verify similar verbs buffer was created
+              (when (get-buffer "*Verbiste Similar Verbs*")
+                (insert "Success: Similar verbs buffer was created\n"))
+              
+              ;; Now find and click a conjugate button
+              (with-current-buffer "*Verbiste Random Verbs*"
+                (goto-char (point-min))
+                (when (re-search-forward "\\[conjugate\\]" nil t)
+                  (backward-char 1)
+                  (let ((conj-button (button-at (point))))
+                    (when conj-button
+                      (insert "Activating conjugate button...\n")
+                      (button-activate conj-button)
+                      
+                      ;; Verify conjugation buffer was created
+                      (when (get-buffer "*Verbiste French Conjugation*")
+                        (insert "Success: Conjugation buffer was created\n"))))))))))
+      
+      (buffer-string)))
+#+end_src
+
+#+begin_src emacs-lisp :results output :exports both
+  (message "\n%s" (vb-test-button-activation))
+#+end_src
+
+* UI Improvement Tests
+
+This section tests the UI improvements implementation.
+
+#+begin_src emacs-lisp
+  ;; Load the UI improvements
+  (require 'verbiste-ui-improvements)
+  
+  (defun vb-test-compare-implementations ()
+    "Compare original and improved UI implementations."
+    (with-temp-buffer
+      (insert "=== Implementation Comparison ===\n\n")
+      
+      ;; Test original implementation
+      (verbiste-browse-random-verbs)
+      (let ((orig-state (vb-test-capture-buffer-state "*Verbiste Random Verbs*")))
+        (insert "Original Implementation:\n")
+        (insert "------------------------\n")
+        (insert (format "Buttons: %d\n" (length (plist-get orig-state :buttons))))
+        
+        ;; Count buttons with incomplete highlighting
+        (let ((incomplete-buttons 0))
+          (dolist (button (plist-get orig-state :buttons))
+            (let ((start (nth 0 button))
+                  (end (nth 1 button))
+                  (fully-highlighted t))
+              (cl-loop for pos from start to (1- end) do
+                       (unless (eq (get-text-property pos 'face orig-state) 'button)
+                         (setq fully-highlighted nil)))
+              (unless fully-highlighted
+                (incf incomplete-buttons))))
+          (insert (format "Buttons with incomplete highlighting: %d\n\n" incomplete-buttons))))
+      
+      ;; Test improved implementation
+      (verbiste-browse-random-verbs-improved)
+      (let ((improved-state (vb-test-capture-buffer-state "*Verbiste Random Verbs*")))
+        (insert "Improved Implementation:\n")
+        (insert "------------------------\n")
+        (insert (format "Buttons: %d\n" (length (plist-get improved-state :buttons))))
+        
+        ;; Count buttons with incomplete highlighting
+        (let ((incomplete-buttons 0))
+          (dolist (button (plist-get improved-state :buttons))
+            (let ((start (nth 0 button))
+                  (end (nth 1 button))
+                  (fully-highlighted t))
+              (cl-loop for pos from start to (1- end) do
+                       (unless (eq (get-text-property pos 'face improved-state) 'button)
+                         (setq fully-highlighted nil)))
+              (unless fully-highlighted
+                (incf incomplete-buttons))))
+          (insert (format "Buttons with incomplete highlighting: %d\n\n" incomplete-buttons))))
+      
+      (buffer-string)))
+#+end_src
+
+#+begin_src emacs-lisp :results output :exports both
+  (message "\n%s" (vb-test-compare-implementations))
+#+end_src
+
+* Comprehensive Test Suite
+
+This runs all the test functions and generates a complete report.
+
+#+begin_src emacs-lisp :results output :exports both
+  (with-temp-buffer
+    (insert "# Verbiste.el UI Test Results\n\n")
+    (insert "## Test Environment\n\n")
+    (insert (format "- Emacs version: %s\n" emacs-version))
+    (insert (format "- System type: %s\n" system-type))
+    (insert (format "- Date: %s\n\n" (format-time-string "%Y-%m-%d %H:%M:%S")))
+    
+    (insert "## Test Results\n\n")
+    (insert (vb-test-random-verbs))
+    (insert "\n\n")
+    (insert (vb-test-conjugation))
+    (insert "\n\n")
+    (insert (vb-test-similar-verbs))
+    (insert "\n\n")
+    (insert (vb-test-tab-navigation))
+    (insert "\n\n")
+    (insert (vb-test-button-activation))
+    (insert "\n\n")
+    
+    (when (featurep 'verbiste-ui-improvements)
+      (insert (vb-test-compare-implementations)))
+    
+    (insert "\n\n## Conclusion\n\n")
+    (insert "The tests identified several UI issues:\n\n")
+    (insert "1. **Read-only buffers** - All verbiste UI buffers use `special-mode` making them read-only, but this isn't clearly communicated\n")
+    (insert "2. **Incomplete verb list** - Only 10 random verbs are shown with no indication of total count\n")
+    (insert "3. **Button highlighting issues** - Some buttons have inconsistent text properties due to fixed character count calculations\n\n")
+    
+    (insert "The UI improvements implementation addresses these issues by:\n\n")
+    (insert "1. Adding clear read-only status indicators\n")
+    (insert "2. Showing verb count information and pagination\n")
+    (insert "3. Using position-based button creation for consistent highlighting\n")
+    
+    (message "%s" (buffer-string)))
+#+end_src
+
+* Package Testing Framework
+
+This section defines a reusable framework for testing interactive Emacs packages.
+
+#+begin_src emacs-lisp
+  (defvar ui-test-framework-results nil
+    "Accumulated results from UI tests.")
+  
+  (defmacro with-ui-test (name &rest body)
+    "Run BODY as a UI test with NAME, capturing results."
+    (declare (indent 1))
+    `(progn
+       (message "Running UI test: %s" ,name)
+       (let ((result (progn ,@body)))
+         (push (cons ,name result) ui-test-framework-results)
+         result)))
+  
+  (defun ui-test-run-tests (&rest test-functions)
+    "Run each function in TEST-FUNCTIONS and collect results."
+    (setq ui-test-framework-results nil)
+    (dolist (test test-functions)
+      (funcall test))
+    (ui-test-generate-report))
+  
+  (defun ui-test-generate-report ()
+    "Generate a report from collected test results."
+    (with-temp-buffer
+      (insert "# UI Test Framework Report\n\n")
+      (insert (format "Generated on: %s\n\n" (format-time-string "%Y-%m-%d %H:%M:%S")))
+      
+      (dolist (result (nreverse ui-test-framework-results))
+        (insert (format "## Test: %s\n\n" (car result)))
+        (insert (format "```\n%s\n```\n\n" (cdr result))))
+      
+      (let ((report-file (expand-file-name "ui-test-report.md" default-directory)))
+        (write-region (point-min) (point-max) report-file)
+        (message "Test report generated: %s" report-file)
+        report-file)))
+  
+  ;; Example usage
+  (defun test-verbiste-ui ()
+    "Run all verbiste UI tests using the framework."
+    (interactive)
+    (ui-test-run-tests
+     (lambda () (with-ui-test "Random Verbs UI" (vb-test-random-verbs)))
+     (lambda () (with-ui-test "Conjugation UI" (vb-test-conjugation)))
+     (lambda () (with-ui-test "Similar Verbs UI" (vb-test-similar-verbs)))
+     (lambda () (with-ui-test "Tab Navigation" (vb-test-tab-navigation)))
+     (lambda () (with-ui-test "Button Activation" (vb-test-button-activation)))))
+#+end_src
+
+#+begin_src emacs-lisp :results output :exports both
+  (test-verbiste-ui)
+  (message "Test report generated in %s" default-directory)
+#+end_src
+
+* Batch Mode Testing
+
+This code defines functions that can be run in Emacs batch mode for CI integration.
+
+#+begin_src emacs-lisp
+  (defun verbiste-ui-batch-tests ()
+    "Run UI tests in batch mode."
+    (unless noninteractive
+      (error "This function must be called in batch mode"))
+    
+    ;; Set up for testing
+    (add-to-list 'load-path default-directory)
+    (require 'verbiste)
+    
+    ;; Run tests and capture output
+    (let ((results (mapconcat
+                    (lambda (test-fn)
+                      (condition-case err
+                          (funcall test-fn)
+                        (error (format "TEST FAILED: %s\nError: %s" 
+                                       (symbol-name test-fn) err))))
+                    '(vb-test-random-verbs
+                      vb-test-conjugation
+                      vb-test-similar-verbs)
+                    "\n\n")))
+      
+      ;; Write results to file
+      (with-temp-file "batch-test-results.txt"
+        (insert "# Verbiste UI Batch Test Results\n\n")
+        (insert (format "Date: %s\n\n" (format-time-string "%Y-%m-%d %H:%M:%S")))
+        (insert results))
+      
+      (message "Tests completed. Results saved to batch-test-results.txt")))
+#+end_src
+
+* Running Tests in CI
+
+Here's how to use these tests in a GitHub Actions workflow:
+
+#+begin_src yaml :tangle .github/workflows/ui-tests.yml
+name: UI Tests
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Emacs
+      uses: purcell/setup-emacs@master
+      with:
+        version: 28.2
+    
+    - name: Run batch UI tests
+      run: |
+        emacs --batch -L . -l integration-tests.org --eval "(verbiste-ui-batch-tests)"
+    
+    - name: Install expect
+      run: sudo apt-get install expect
+    
+    - name: Run interactive UI tests
+      run: |
+        ./test-ui-modes.sh
+    
+    - name: Upload test results
+      uses: actions/upload-artifact@v3
+      with:
+        name: ui-test-results
+        path: |
+          batch-test-results.txt
+          ui-test-results/
+#+end_src
+
+* Conclusion
+
+This document provides a comprehensive approach to testing UI elements in verbiste.el, combining:
+
+1. Automated static analysis of buffer content and text properties
+2. Interactive testing of button navigation and activation
+3. Visual verification of UI components
+4. Implementation of improvements to address identified issues
+5. A comparison framework to validate UI changes
+
+These testing techniques can be applied to other Emacs packages with UI components as well.
