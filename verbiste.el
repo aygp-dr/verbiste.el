@@ -3,7 +3,7 @@
 ;; Copyright (C) 2025 Aidan Pace
 
 ;; Author: Aidan Pace <apace@defrecord.com>
-;; Version: 0.1
+;; Version: 0.1.1
 ;; Package-Requires: ((emacs "25.1"))
 ;; Keywords: languages, french, italian, conjugation
 ;; URL: https://github.com/aygp-dr/verbiste.el

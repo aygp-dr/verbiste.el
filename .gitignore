@@ -32,5 +32,10 @@ data/*.org
 # Misc
 .DS_Store
 .env
+dist/
+
+# Python cache
+__pycache__/
+**/__pycache__/
 
 **/.claude/settings.local.json
