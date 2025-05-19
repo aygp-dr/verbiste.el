@@ -5,6 +5,7 @@
 *~
 \#*\#
 .\#*
+*.bak
 
 # Auto-save files
 auto-save-list
@@ -13,6 +14,7 @@ tramp
 # Generated files
 data/*.json
 data/*.org
+data/*.bak
 
 # Verbiste XML dumps
 /verbiste-*.xml
